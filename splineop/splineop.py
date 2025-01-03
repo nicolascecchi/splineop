@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from .costs import *
 
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
+
+
 @jitclass(splineop_spec_Pen)
 class splineOPPenalized(object):
     n_points: int64
@@ -106,8 +108,8 @@ class splineOPPenalized(object):
         return self.backtrack_solution()
 
 
-#splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
-#@jitclass(splineop_spec_Constrained)
+# splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
+# @jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
     n_points: int64
     n_states: int64
@@ -122,6 +124,7 @@ class splineOPConstrained(object):
 
     def __init__(self, cost_fn):
         self.cost = cost_fn
+
     def fit(
         self,
         signal: np.ndarray,
@@ -134,66 +137,67 @@ class splineOPConstrained(object):
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
+
     def predict(self, K):
         """
-        Compute the optimal partition for K change-points. 
+        Compute the optimal partition for K change-points.
 
         args
-        K (int) Number of changepoints desired by the user, implying K+1 segments.  
+        K (int) Number of changepoints desired by the user, implying K+1 segments.
         """
         # Internally we think the procedure in terms of nb of segments
         # therefore we need dimension K+2 because we index 0 as a dummy
-        # and then have indexes 1 through K+1, representing the segments 
-        
+        # and then have indexes 1 through K+1, representing the segments
+
         # The fist dimension of SOC is used as a dummy with all 0s
         # The first dimensions of the others is a dummy never used
-        # but helps in terms of clarity with the indexing.  
-        print(K)
-        self.soc = np.empty(shape=(K+2, self.n_points + 1, self.n_states), dtype=np.float64)
-        self.soc[0] = 0 # Dummy
+        # but helps in terms of clarity with the indexing.
+        self.soc = np.empty(
+            shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
+        )
+        self.soc[0] = 0  # Dummy
         self.time_path_mat = np.empty(
-            shape=(K+2,self.n_points + 1, self.n_states), dtype=np.int64
+            shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
         self.state_path_mat = np.empty(
-            shape=(K+2,self.n_points + 1, self.n_states), dtype=np.int64
+            shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
         self.speed_path_mat = np.empty(
-            shape=(K+2,self.n_points + 1, self.n_states), dtype=np.float64
+            shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
         )
-        for k in range(1,K+2):
-            for end in range(k,self.n_points+1):
+        for k in range(1, K + 2):
+            for end in range(k, self.n_points + 1):
                 for p_end_idx in range(self.n_states):
                     (
-                    self.soc[k, end, p_end_idx], 
-                    self.state_path_mat[k, end, p_end_idx],   
-                    self.time_path_mat[k, end, p_end_idx], 
-                    self.speed_path_mat[k, end, p_end_idx],
+                        self.soc[k, end, p_end_idx],
+                        self.state_path_mat[k, end, p_end_idx],
+                        self.time_path_mat[k, end, p_end_idx],
+                        self.speed_path_mat[k, end, p_end_idx],
                     ) = self.cost.compute_optimal_cost(
-                        end= end,
-                        p_end_idx= p_end_idx,
-                        speed_matrix= self.speed_path_mat[k-1],
-                        initial_speeds= self.initial_speeds,
-                        soc= self.soc[k-1],
-                        k=k
-                    )  
-        return self.backtrack_solution() 
+                        end=end,
+                        p_end_idx=p_end_idx,
+                        speed_matrix=self.speed_path_mat[k - 1],
+                        initial_speeds=self.initial_speeds,
+                        soc=self.soc[k - 1],
+                        k=k,
+                    )
+        return self.backtrack_solution()
 
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
         K = self.soc.shape[0]
-
         t = self.soc.shape[1] - 1
         bkps = np.array([t], dtype=np.int32)
-        state_idx_sequence = np.array([int(np.argmin(self.soc[-1,-1]))], dtype=np.int64)
-        
-        for k in range(K-1,0,-1): # 0 is not included 
-            previous_cp  = np.array([self.time_path_mat[k,
-                                        bkps[0], 
-                                        state_idx_sequence[0]]]
-                                        )
-            previous_state = np.array([self.state_path_mat[k, 
-                                        bkps[0],
-                                        state_idx_sequence[0]]]
-                                        )
+        state_idx_sequence = np.array(
+            [int(np.argmin(self.soc[-1, -1]))], dtype=np.int64
+        )
+
+        for k in range(K - 1, 0, -1):  # 0 is not included
+            previous_cp = np.array(
+                [self.time_path_mat[k, bkps[0], state_idx_sequence[0]]]
+            )
+            previous_state = np.array(
+                [self.state_path_mat[k, bkps[0], state_idx_sequence[0]]]
+            )
 
             bkps = np.concat((previous_cp, bkps))
             state_idx_sequence = np.concat((previous_state, state_idx_sequence))
@@ -311,6 +315,7 @@ def get_polynomial_from_penalized_model(model) -> interpolate.PPoly:
 
     return p
 
+
 def get_polynomial_from_constrained_model(model) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
@@ -362,6 +367,7 @@ def get_polynomial_from_constrained_model(model) -> interpolate.PPoly:
 
     return p
 
+
 def draw_bkps(n_bkps, n_samples, normalized, random_state):
     """
     Draw random changepoint indexes.
@@ -387,7 +393,12 @@ def draw_bkps(n_bkps, n_samples, normalized, random_state):
 
 
 def generate_pw_quadratic(
-    n_bkps: int = 5, n_points: int = 1000, normalized=True, random_state: int = None, delta: float = None, strategy: str = None
+    n_bkps: int = 5,
+    n_points: int = 1000,
+    normalized=True,
+    random_state: int = None,
+    delta: float = None,
+    strategy: str = None,
 ) -> interpolate.PPoly:
     """
     Randomly generates a piecewise quadratic polynomial.
@@ -398,7 +409,7 @@ def generate_pw_quadratic(
         normalized (bool) : If True, change-points are converted to [0,1].
         random_state (int) : Random seed for sampling the changes.
         delta (float): Minimum jump-size.
-        strategy (string): 'exact' jumps of size 'delta', exactly. Others, not implemented yet. 
+        strategy (string): 'exact' jumps of size 'delta', exactly. Others, not implemented yet.
 
     Returns:
         poly (scipy.interpolate.Polynomial) : Randomly generated polynomial over the interval [0,1] if normalized,
@@ -466,17 +477,19 @@ def generate_pw_quadratic(
         if i == 1:
             # sample fist
             a_i = np.random.randint(low=-5, high=5)
-        else: 
+        else:
             # sample with minimum jump size
             if delta:
-                if strategy == 'exact':
-                    jump_i = delta * np.random.choice(a=[-1,1], size =  [1], replace=True)[0]
-                elif strategy == 'geq':
-                    jump_i = np.random.uniform(low=-3*delta,high=3*delta)
+                if strategy == "exact":
+                    jump_i = (
+                        delta * np.random.choice(a=[-1, 1], size=[1], replace=True)[0]
+                    )
+                elif strategy == "geq":
+                    jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
                     while np.abs(jump_i) < delta:
-                        jump_i = np.random.uniform(low=-3*delta,high=3*delta)
+                        jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
                 else:
-                    raise(Exception("Not implemented error")) 
+                    raise (Exception("Not implemented error"))
                 a_i = a_i + jump_i
             else:
                 a_i = np.random.randint(low=-5, high=5)

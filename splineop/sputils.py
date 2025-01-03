@@ -11,6 +11,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Arrow, Circle
 
+
 def moving_average(a, n=2):
     """
     Compute moving average of array 'a' over a window of size 'n'.
@@ -140,7 +141,6 @@ def load_and_compute(
         return poly, noised_signal, clean_signal
 
 
-
 def predict_pipeline(signal, positions, speeds, pen=None, normalized=True, K=None):
     """
     Fits model to <signal> and predicts change points.
@@ -257,13 +257,14 @@ def spline_approximation(data, n_points, pen, degree=2):
 
     return index_break_points, error, run_time
 
-def bkps_to_spline(yobs, bkps,deg=2):
+
+def bkps_to_spline(yobs, bkps, deg=2):
     """
     Given bkps and observations, constructs the BSpline.antiderivative
 
     Args
-        yobs: Observed signal to fit. 
-        bkps: Knots for the spline, not including 0 and 1. 
+        yobs: Observed signal to fit.
+        bkps: Knots for the spline, not including 0 and 1.
         deg: Degree of the polynomial.
 
     Returns
@@ -271,69 +272,73 @@ def bkps_to_spline(yobs, bkps,deg=2):
 
 
     bkps must be in (0,1), not include extremes.
-     
+
     """
     try:
-        x = np.linspace(0,1,len(yobs), endpoint=False)
-        t,c,k = splrep(x=x,
-        y=yobs,
-        xb=0,
-        xe=1,
-        k=deg,
-        t=bkps,
+        x = np.linspace(0, 1, len(yobs), endpoint=False)
+        t, c, k = splrep(
+            x=x,
+            y=yobs,
+            xb=0,
+            xe=1,
+            k=deg,
+            t=bkps,
         )
-        poly = BSpline(c=c,t=t,k=k)
+        poly = BSpline(c=c, t=t, k=k)
     except:
-        x = np.linspace(0,1,len(yobs), endpoint=True)
-        t,c,k = splrep(x=x,
-        y=yobs,
-        xb=0,
-        xe=1,
-        k=deg,
-        t=bkps,
+        x = np.linspace(0, 1, len(yobs), endpoint=True)
+        t, c, k = splrep(
+            x=x,
+            y=yobs,
+            xb=0,
+            xe=1,
+            k=deg,
+            t=bkps,
         )
-        poly = BSpline(c=c,t=t,k=k)
+        poly = BSpline(c=c, t=t, k=k)
     return poly
 
-def see_predictions(n_points, n_bkps, seed, noise_idx, multiplier,tftol,dfpivot):
+
+def see_predictions(n_points, n_bkps, seed, noise_idx, multiplier, tftol, dfpivot):
     """
-    Plots observations, true signal, and the 3 predictions we are comparing. 
+    Plots observations, true signal, and the 3 predictions we are comparing.
 
 
-    n_points, n_bkps, seed, noise_idx to identify the signal. 
-    pen(alty) to run the models. 
+    n_points, n_bkps, seed, noise_idx to identify the signal.
+    pen(alty) to run the models.
     """
-    noises = {0:0.1, 1:0.13, 2:0.16}
+    noises = {0: 0.1, 1: 0.13, 2: 0.16}
     noise_lvl = noises[noise_idx]
     pen = multiplier * noise_lvl
 
-    poly, noised_signal, clean_signal, states, speeds = load_and_compute(datapath = "../data"
-                                                    ,n_bkps=n_bkps
-                                                    ,n_points=n_points
-                                                    ,seed=seed
-                                                    ,noise_idx=noise_idx
-                                                    ,pos_heuristic='truth'
-                                                    ,speed_heuristic='truth'
-                                                    ,nstates=1)
+    poly, noised_signal, clean_signal, states, speeds = load_and_compute(
+        datapath="../data",
+        n_bkps=n_bkps,
+        n_points=n_points,
+        seed=seed,
+        noise_idx=noise_idx,
+        pos_heuristic="truth",
+        speed_heuristic="truth",
+        nstates=1,
+    )
     #####################################
     #####################################
     # TREND FILTERING
     #####################################
     #####################################
 
-    ytf = trend_filtering_pwq(signal=noised_signal.reshape(n_points,1), vlambda=pen)[0]
+    ytf = trend_filtering_pwq(signal=noised_signal.reshape(n_points, 1), vlambda=pen)[0]
     #####################################
     #####################################
     # Smoothing splines
     #####################################
     #####################################
-    time_array = np.linspace(0, 1, num=n_points) # set the interval over which to fit the spline
-    tck, _, _, _ = splrep(x=time_array,
-                            y=noised_signal,
-                            k=2,
-                            task=0,
-                            s=pen,
-                            full_output=1)
+    time_array = np.linspace(
+        0, 1, num=n_points
+    )  # set the interval over which to fit the spline
+    tck, _, _, _ = splrep(
+        x=time_array, y=noised_signal, k=2, task=0, s=pen, full_output=1
+    )
     smsp_poly = interpolate.BSpline(*tck)
 
     #####################################
@@ -347,25 +352,23 @@ def see_predictions(n_points, n_bkps, seed, noise_idx, multiplier,tftol,dfpivot)
 
     model.fit(noised_signal, states, speeds, True)
     model.predict(pen)
- 
+
     #####################################
     #####################################
     # Build SPOP polynomial
     #####################################
     #####################################
     intbkps = model.bkps.astype(int)
-    step_size = 1/n_points
+    step_size = 1 / n_points
     n_steps = np.diff(intbkps)
     L = len(intbkps) - 1
 
-    segment_start_speed = model.speed_path_mat[
-            0, model.state_idx_sequence[0]
-        ]
+    segment_start_speed = model.speed_path_mat[0, model.state_idx_sequence[0]]
     speed = np.array([segment_start_speed])
     acc = np.array([])
 
     # Rest of the points
-    for bkp_idx in range(1, L):        
+    for bkp_idx in range(1, L):
         segment_start_speed = model.speed_path_mat[
             intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
         ]
@@ -374,234 +377,297 @@ def see_predictions(n_points, n_bkps, seed, noise_idx, multiplier,tftol,dfpivot)
             values=segment_start_speed,
         )
         prev_seg_acc = np.array(
-            [(speed[bkp_idx] - speed[bkp_idx - 1]) / (2 * n_steps[bkp_idx - 1] *step_size)]
+            [
+                (speed[bkp_idx] - speed[bkp_idx - 1])
+                / (2 * n_steps[bkp_idx - 1] * step_size)
+            ]
         )
         acc = np.concatenate((acc, prev_seg_acc))
 
     final_speed = model.speed_path_mat[intbkps[L], model.state_idx_sequence[L]]
-    prev_seg_acc = np.array([(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] *step_size)])
+    prev_seg_acc = np.array(
+        [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
+    )
     acc = np.concatenate((acc, prev_seg_acc))
     c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
     x = intbkps
 
-    spop_poly = interpolate.PPoly(c=c, x=x*step_size) #spop poly
-
+    spop_poly = interpolate.PPoly(c=c, x=x * step_size)  # spop poly
 
     #########################################
     ## Number of ruptures for each algorithm:
-    cpt = np.where(~np.isclose(np.diff(ytf,n=3),0,atol=1e-4))[0]
+    cpt = np.where(~np.isclose(np.diff(ytf, n=3), 0, atol=1e-4))[0]
     cpt = np.append(arr=cpt, values=n_points)
-    nbkps_tf = len(cpt)-1
+    nbkps_tf = len(cpt) - 1
 
     nbkps_spop = len(model.bkps[1:-1])
     nbkps_smsp = len(np.unique(tck[0])[1:-1])
-    xpoints = np.linspace(0,1,n_points)
+    xpoints = np.linspace(0, 1, n_points)
 
     yspop = spop_poly(xpoints)
     ysmsp = smsp_poly(xpoints)
 
-    loss_spop=np.mean((yspop - clean_signal)**2),np.mean((yspop - noised_signal)**2) 
-    loss_smsp=np.mean((ysmsp - clean_signal)**2),np.mean((ysmsp - noised_signal)**2) 
-    loss_tf= np.mean((ytf - clean_signal)**2),np.mean((ytf - noised_signal)**2)
+    loss_spop = np.mean((yspop - clean_signal) ** 2), np.mean(
+        (yspop - noised_signal) ** 2
+    )
+    loss_smsp = np.mean((ysmsp - clean_signal) ** 2), np.mean(
+        (ysmsp - noised_signal) ** 2
+    )
+    loss_tf = np.mean((ytf - clean_signal) ** 2), np.mean((ytf - noised_signal) ** 2)
 
-    
-    f, ax = plt.subplots(figsize=(10,10))
-    xline = np.linspace(0,1,10000)
-    
+    f, ax = plt.subplots(figsize=(10, 10))
+    xline = np.linspace(0, 1, 10000)
 
-    ax.hlines(y=model.states,xmin=0,xmax=1, label='states', color='black')
+    ax.hlines(y=model.states, xmin=0, xmax=1, label="states", color="black")
 
-    ax.plot(xline,spop_poly(xline), color='blue',lw=1,zorder=0,label=f'spop - nbkps {nbkps_spop} - MSE {loss_spop[0]:1.3e} - EMP_MSE {loss_spop[1]:1.3e}')
-    ax.plot(xpoints,ytf, color='lime', label=f'tf - nbkps {nbkps_tf} - MSE {loss_tf[0]:1.3e} - EMP_MSE {loss_tf[1]:1.3e}',lw=1)
-    ax.plot(xline, smsp_poly(xline), color='magenta', label=f'smsp - nbkps {nbkps_smsp}- MSE {loss_smsp[0]:1.3e} - EMP_MSE {loss_smsp[1]:1.3e}',lw=0.5)
+    ax.plot(
+        xline,
+        spop_poly(xline),
+        color="blue",
+        lw=1,
+        zorder=0,
+        label=f"spop - nbkps {nbkps_spop} - MSE {loss_spop[0]:1.3e} - EMP_MSE {loss_spop[1]:1.3e}",
+    )
+    ax.plot(
+        xpoints,
+        ytf,
+        color="lime",
+        label=f"tf - nbkps {nbkps_tf} - MSE {loss_tf[0]:1.3e} - EMP_MSE {loss_tf[1]:1.3e}",
+        lw=1,
+    )
+    ax.plot(
+        xline,
+        smsp_poly(xline),
+        color="magenta",
+        label=f"smsp - nbkps {nbkps_smsp}- MSE {loss_smsp[0]:1.3e} - EMP_MSE {loss_smsp[1]:1.3e}",
+        lw=0.5,
+    )
 
-    
-    ax.plot(xline, poly(xline), color='black',label=f'True nbkps: {n_bkps}',lw=1.5, ls='--')
-    ax.scatter(np.arange(0,n_points)/n_points, noised_signal, color='red',s=2, label='obs')
-    plt.title(f'n_points {n_points}, n_bkps {n_bkps}, seed {seed}, noise_idx {noise_idx}, pen {pen}, mult {round(multiplier)}' )
+    ax.plot(
+        xline,
+        poly(xline),
+        color="black",
+        label=f"True nbkps: {n_bkps}",
+        lw=1.5,
+        ls="--",
+    )
+    ax.scatter(
+        np.arange(0, n_points) / n_points, noised_signal, color="red", s=2, label="obs"
+    )
+    plt.title(
+        f"n_points {n_points}, n_bkps {n_bkps}, seed {seed}, noise_idx {noise_idx}, pen {pen}, mult {round(multiplier)}"
+    )
     plt.legend()
     ax.legend(bbox_to_anchor=(1.05, 0.5))
 
-def compare_tf_spop(n_points, n_bkps, seed, noise_idx,tftol, multiplier, savedir=None):
+
+def compare_tf_spop(n_points, n_bkps, seed, noise_idx, tftol, multiplier, savedir=None):
     """
-    n_points, n_bkps, seed, noise_idx to identify the signal. 
-    pen(alty) to run the models. 
+    n_points, n_bkps, seed, noise_idx to identify the signal.
+    pen(alty) to run the models.
     """
-    noises = {0:0.1, 1:0.13, 2:0.16}
+    noises = {0: 0.1, 1: 0.13, 2: 0.16}
     noise_lvl = noises[noise_idx]
     pen = multiplier * noise_lvl
 
-    poly, noised_signal, clean_signal, states, speeds = load_and_compute(datapath = "../data"
-                                                    ,n_bkps=n_bkps
-                                                    ,n_points=n_points
-                                                    ,seed=seed
-                                                    ,noise_idx=noise_idx
-                                                    ,pos_heuristic='truth'
-                                                    ,speed_heuristic='truth'
-                                                    ,nstates=1)
+    poly, noised_signal, clean_signal, states, speeds = load_and_compute(
+        datapath="../data",
+        n_bkps=n_bkps,
+        n_points=n_points,
+        seed=seed,
+        noise_idx=noise_idx,
+        pos_heuristic="truth",
+        speed_heuristic="truth",
+        nstates=1,
+    )
     #####################################
     #####################################
     # TREND FILTERING
     #####################################
     #####################################
 
-    ytf = trend_filtering_pwq(signal=noised_signal.reshape(n_points,1), vlambda=pen)[0]
+    ytf = trend_filtering_pwq(signal=noised_signal.reshape(n_points, 1), vlambda=pen)[0]
 
     cost = sop.cost_fn()
     model = sop.splineOP(cost)
 
     model.fit(noised_signal, states, speeds, True)
     model.predict(pen)
- 
+
     spop_poly = sop.get_polynomial_from_model(model)
 
-
     ## Number of ruptures for each algorithm:
-    tf_cpt = np.where(~np.isclose(np.diff(ytf,n=3),0,atol=tftol))[0]
-    tf_cpt = np.unique(
-            np.concatenate((np.array([0]), tf_cpt, np.array([n_points])))
-        ) 
+    tf_cpt = np.where(~np.isclose(np.diff(ytf, n=3), 0, atol=tftol))[0]
+    tf_cpt = np.unique(np.concatenate((np.array([0]), tf_cpt, np.array([n_points]))))
     tf_cpt = tf_cpt[1:-1]
-    tf_spline = bkps_to_spline(yobs=noised_signal, bkps=tf_cpt/n_points, deg=2)
-    #tf_cpt = np.append(arr=tf_cpt, values=n_points)
+    tf_spline = bkps_to_spline(yobs=noised_signal, bkps=tf_cpt / n_points, deg=2)
+    # tf_cpt = np.append(arr=tf_cpt, values=n_points)
     nbkps_tf = len(tf_cpt)
 
     nbkps_spop = len(model.bkps[1:-1])
 
-
     ####################################
     # PLOT DE LOS PREDICHOS REALES     #
     ####################################
-    f, ax = plt.subplots(figsize=(20,10), ncols=2)
-    
-    ax_normal = ax[0]
-    xline = np.linspace(0,1,10000) # For plotting
-    xpoints = np.linspace(0,1,n_points) # For error computations
-    
+    f, ax = plt.subplots(figsize=(20, 10), ncols=2)
 
-    tf_mse = np.mean((ytf - clean_signal)**2)
-    tf_empirical = np.mean((ytf - noised_signal)**2)
+    ax_normal = ax[0]
+    xline = np.linspace(0, 1, 10000)  # For plotting
+    xpoints = np.linspace(0, 1, n_points)  # For error computations
+
+    tf_mse = np.mean((ytf - clean_signal) ** 2)
+    tf_empirical = np.mean((ytf - noised_signal) ** 2)
 
     yspop_plot = spop_poly(xline)
     yspop = spop_poly(xpoints)
     spop_spline = bkps_to_spline(yobs=noised_signal, bkps=spop_poly.x[1:-1], deg=2)
 
-    spop_mse = np.mean((yspop - clean_signal)**2)
-    spop_empirical = np.mean((yspop - noised_signal)**2)
-    
+    spop_mse = np.mean((yspop - clean_signal) ** 2)
+    spop_empirical = np.mean((yspop - noised_signal) ** 2)
 
-    ax_normal.hlines(y=model.states,xmin=0,xmax=1, label='states', color='black')
+    ax_normal.hlines(y=model.states, xmin=0, xmax=1, label="states", color="black")
     ymin = min(noised_signal)
     ymax = max(noised_signal)
-    bkpstitle = ''
+    bkpstitle = ""
 
-    if len(spop_poly.x)<15:    
-        ax_normal.vlines(x=spop_poly.x[1:-1], ymin=ymin,ymax=ymax, lw=1, ls='--', color='blue')
+    if len(spop_poly.x) < 15:
+        ax_normal.vlines(
+            x=spop_poly.x[1:-1], ymin=ymin, ymax=ymax, lw=1, ls="--", color="blue"
+        )
         bkpstitle = spop_poly.x
 
-    ax_normal.plot(xline,yspop_plot, color='blue',lw=1,zorder=0,label=f'spop - nbkps {nbkps_spop} - MSE :{spop_mse:3.3E}- emp {spop_empirical:3.3E}')
-    ax_normal.plot(xpoints,ytf, color='limegreen', label=f'tf - nbkps {nbkps_tf}- MSE :{tf_mse:3.3E} - emp {tf_empirical:3.3E}',lw=1, ls=':')
+    ax_normal.plot(
+        xline,
+        yspop_plot,
+        color="blue",
+        lw=1,
+        zorder=0,
+        label=f"spop - nbkps {nbkps_spop} - MSE :{spop_mse:3.3E}- emp {spop_empirical:3.3E}",
+    )
+    ax_normal.plot(
+        xpoints,
+        ytf,
+        color="limegreen",
+        label=f"tf - nbkps {nbkps_tf}- MSE :{tf_mse:3.3E} - emp {tf_empirical:3.3E}",
+        lw=1,
+        ls=":",
+    )
 
-    ax_normal.plot(xline, poly(xline), color='black',label=f'True nbkps: {n_bkps}',lw=1.5, ls='--')
-    ax_normal.scatter(np.arange(0,n_points)/n_points, noised_signal, color='red',s=2, label='obs')
-    
+    ax_normal.plot(
+        xline,
+        poly(xline),
+        color="black",
+        label=f"True nbkps: {n_bkps}",
+        lw=1.5,
+        ls="--",
+    )
+    ax_normal.scatter(
+        np.arange(0, n_points) / n_points, noised_signal, color="red", s=2, label="obs"
+    )
 
-    ax_normal.set_ylim((ymin-0.01,ymax+0.01))
-    ax_normal.legend(fontsize='xx-large')
+    ax_normal.set_ylim((ymin - 0.01, ymax + 0.01))
+    ax_normal.legend(fontsize="xx-large")
     ax_normal.legend(bbox_to_anchor=(0.5, -0.05))
-    f.suptitle(f'n_points {n_points}, n_bkps {n_bkps}, seed {seed}, noise_idx {noise_idx}, pen {np.round(pen,3)}, mult {round(multiplier,3)}\n spop pred {bkpstitle[1:-1]}' )
-
+    f.suptitle(
+        f"n_points {n_points}, n_bkps {n_bkps}, seed {seed}, noise_idx {noise_idx}, pen {np.round(pen,3)}, mult {round(multiplier,3)}\n spop pred {bkpstitle[1:-1]}"
+    )
 
     ####################################
     # PLOT DE LOS SPLINES CALCULADOS   #
     ####################################
-    #fsplines, axsplines = plt.subplots()
+    # fsplines, axsplines = plt.subplots()
 
     ytf_spline = tf_spline(xpoints)
-    tfspline_mse = np.mean((ytf_spline - clean_signal)**2)
-    tfspline_empirical_mse = np.mean((ytf_spline - noised_signal)**2)
-    
-    yspop_spline = spop_spline(xpoints)
-    spopspline_mse = np.mean((yspop_spline - clean_signal)**2)
-    spopspline_empirical_mse = np.mean((yspop_spline - noised_signal)**2)
+    tfspline_mse = np.mean((ytf_spline - clean_signal) ** 2)
+    tfspline_empirical_mse = np.mean((ytf_spline - noised_signal) ** 2)
 
+    yspop_spline = spop_spline(xpoints)
+    spopspline_mse = np.mean((yspop_spline - clean_signal) ** 2)
+    spopspline_empirical_mse = np.mean((yspop_spline - noised_signal) ** 2)
 
     axsplines = ax[1]
-    axsplines.plot(xline, 
-                   spop_spline(xline),
-                   label=f'spop spline - MSE: {spopspline_mse:3.5E} - emp {spopspline_empirical_mse:3.5E}',
-                    color='blue')
-    axsplines.plot(xline,
-                    tf_spline(xline),
-                    ls='-.',
-                    label=f'tf spline - MSE: {tfspline_mse:3.5E} - emp {tfspline_empirical_mse:3.5E}' , color='limegreen')
-    axsplines.plot(xline,
-                    poly(xline),
-                    label='f(x)',
-                    color='k',ls='--')
-    
+    axsplines.plot(
+        xline,
+        spop_spline(xline),
+        label=f"spop spline - MSE: {spopspline_mse:3.5E} - emp {spopspline_empirical_mse:3.5E}",
+        color="blue",
+    )
+    axsplines.plot(
+        xline,
+        tf_spline(xline),
+        ls="-.",
+        label=f"tf spline - MSE: {tfspline_mse:3.5E} - emp {tfspline_empirical_mse:3.5E}",
+        color="limegreen",
+    )
+    axsplines.plot(xline, poly(xline), label="f(x)", color="k", ls="--")
+
     if tfspline_mse < spopspline_mse:
-        axsplines.annotate(text='X', xy=(0.1,0.1),size='xx-large',weight='heavy')
+        axsplines.annotate(text="X", xy=(0.1, 0.1), size="xx-large", weight="heavy")
 
-    axsplines.scatter(np.unique(spop_spline.t)[1:-1], 
-                    spop_spline(np.unique(spop_spline.t)[1:-1]),
-                    color='blue',
-                    s=100,
-                    zorder=3.5) #BSpline
-    axsplines.scatter(tf_cpt/n_points,
-                        tf_spline(tf_cpt/n_points),
-                        color='limegreen',
-                        zorder=3.5) # BSpline
-    
-    axsplines.scatter(poly.x[1:-1], 
-                      poly(poly.x[1:-1]), 
-                      color='k',
-                      marker='*',
-                      s=125,
-                      zorder=3.5) # PPoly 
+    axsplines.scatter(
+        np.unique(spop_spline.t)[1:-1],
+        spop_spline(np.unique(spop_spline.t)[1:-1]),
+        color="blue",
+        s=100,
+        zorder=3.5,
+    )  # BSpline
+    axsplines.scatter(
+        tf_cpt / n_points, tf_spline(tf_cpt / n_points), color="limegreen", zorder=3.5
+    )  # BSpline
 
-    axsplines.scatter(np.arange(0,n_points)/n_points, noised_signal, color='red',s=1, label='obs')
+    axsplines.scatter(
+        poly.x[1:-1], poly(poly.x[1:-1]), color="k", marker="*", s=125, zorder=3.5
+    )  # PPoly
+
+    axsplines.scatter(
+        np.arange(0, n_points) / n_points, noised_signal, color="red", s=1, label="obs"
+    )
     yliminf = np.min(noised_signal) - 0.05
     ylimsup = np.max(noised_signal) + 0.05
-    axsplines.set_ylim((yliminf,ylimsup))
-    axsplines.legend(fontsize='xx-large')
+    axsplines.set_ylim((yliminf, ylimsup))
+    axsplines.legend(fontsize="xx-large")
     axsplines.legend(bbox_to_anchor=(0.5, -0.05))
 
-    #print(f'{savedir}/{n_points}-{n_bkps}-{seed}-{noise_idx}-{multiplier}-tftol{int(-np.log10(tftol)):}')
+    # print(f'{savedir}/{n_points}-{n_bkps}-{seed}-{noise_idx}-{multiplier}-tftol{int(-np.log10(tftol)):}')
 
     if savedir is not None:
         if savedir not in os.listdir():
             os.mkdir(savedir)
-        f.savefig(f'{savedir}/{n_points}-{n_bkps}-{seed}-{noise_idx}-{multiplier}-tftol{int(-np.log10(tftol)):}.png',bbox_inches='tight')
+        f.savefig(
+            f"{savedir}/{n_points}-{n_bkps}-{seed}-{noise_idx}-{multiplier}-tftol{int(-np.log10(tftol)):}.png",
+            bbox_inches="tight",
+        )
         plt.close()
     else:
         f.show()
 
 
 def predict_from_bkps(row):
-    
-    n_bkps=row.true_n_bkps
+
+    n_bkps = row.true_n_bkps
     n_points = row.n_points
     seed = row.sample_seed
     noise_idx = row.noise_idx
 
-    _, noised_signal, clean_signal, _, _ = load_and_compute(datapath = "../data"
-                                                    ,n_bkps=n_bkps
-                                                    ,n_points=n_points
-                                                    ,seed=seed
-                                                    ,noise_idx=noise_idx
-                                                    ,pos_heuristic='truth'
-                                                    ,speed_heuristic='truth'
-                                                    ,nstates=1)
-    
-    x = np.linspace(0,1,num=n_points,endpoint=False)
+    _, noised_signal, clean_signal, _, _ = load_and_compute(
+        datapath="../data",
+        n_bkps=n_bkps,
+        n_points=n_points,
+        seed=seed,
+        noise_idx=noise_idx,
+        pos_heuristic="truth",
+        speed_heuristic="truth",
+        nstates=1,
+    )
+
+    x = np.linspace(0, 1, num=n_points, endpoint=False)
     try:
-        spline = bkps_to_spline(yobs=noised_signal, bkps=row.pred_bkps/row.n_points)
-        yspline = spline(x)    
-        spline_mse = np.mean((yspline - clean_signal)**2)
+        spline = bkps_to_spline(yobs=noised_signal, bkps=row.pred_bkps / row.n_points)
+        yspline = spline(x)
+        spline_mse = np.mean((yspline - clean_signal) ** 2)
     except:
-        x = np.linspace(0,1,num=n_points,endpoint=True)
-        spline = bkps_to_spline(yobs=noised_signal, bkps=row.pred_bkps/row.n_points)
-        yspline = spline(x)    
-        spline_mse = np.mean((yspline - clean_signal)**2)
+        x = np.linspace(0, 1, num=n_points, endpoint=True)
+        spline = bkps_to_spline(yobs=noised_signal, bkps=row.pred_bkps / row.n_points)
+        yspline = spline(x)
+        spline_mse = np.mean((yspline - clean_signal) ** 2)
     return spline_mse

@@ -256,7 +256,7 @@ class costPenalized(object):
 # splineop_spec = [
 
 
-#@jitclass
+# @jitclass
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
@@ -478,7 +478,7 @@ class costConstrained(object):
         # Cases with change point
         else:
             for p_start_idx in range(self.n_states):
-                for mid in range(k-1, end):
+                for mid in range(k - 1, end):
                     new_seg_error, new_end_speed = self.error(
                         start=mid,
                         end=end,
@@ -487,11 +487,9 @@ class costConstrained(object):
                         v_start_val=speed_matrix[mid, p_start_idx],
                     )
                     if (
-                        soc[mid, p_start_idx] + new_seg_error 
+                        soc[mid, p_start_idx] + new_seg_error
                     ) < curr_optimal_cost_val:  # What happens if it is equal ??
-                        curr_optimal_cost_val = (
-                            soc[mid, p_start_idx] + new_seg_error 
-                        )
+                        curr_optimal_cost_val = soc[mid, p_start_idx] + new_seg_error
                         curr_optimal_speed_val = new_end_speed
                         curr_optimal_start_state = p_start_idx
                         curr_optimal_time = mid
