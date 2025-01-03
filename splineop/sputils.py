@@ -1,5 +1,5 @@
 import splineop.splineop as sop
-import costs
+import splineop.costs as costs
 import numpy as np
 from scipy import stats
 import pickle
@@ -141,7 +141,7 @@ def load_and_compute(
 
 
 
-def predict_pipeline(signal, positions, speeds, pen, normalized, K=None):
+def predict_pipeline(signal, positions, speeds, pen=None, normalized=True, K=None):
     """
     Fits model to <signal> and predicts change points.
 
