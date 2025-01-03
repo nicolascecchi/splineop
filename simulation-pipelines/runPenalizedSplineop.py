@@ -62,7 +62,7 @@ def f(inputs):
     # Compute metrics
     total_error = np.min(model.soc[-1])
     pred_n_bkps = len(model.bkps) - 2
-    spop_polynomial = sop.get_polynomial_from_model(model)
+    spop_polynomial = sop.get_polynomial_from_penalized_model(model)
     
     x = np.linspace(start=0, stop=1, num=n_points, endpoint=False)
     ypred = spop_polynomial(x)
@@ -220,7 +220,7 @@ def main(n_points, save_folder):
     ]
 
     with open(
-        f"./{save_folder}/sop_results_{n_points[0]}.csv", "w+", newline="\n"
+        f"./{save_folder}/p-spop_results_{n_points[0]}.csv", "w+", newline="\n"
     ) as file:
         writer = csv.DictWriter(file, fieldnames=fn, delimiter=";", dialect="excel",quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()

@@ -62,7 +62,7 @@ def f(inputs):
     # Compute metrics
     total_error = np.min(model.soc[-1])
     pred_n_bkps = len(model.bkps) - 2
-    spop_polynomial = sop.get_polynomial_from_model(model)
+    spop_polynomial = sop.get_polynomial_from_constrained_model(model)
     
     x = np.linspace(start=0, stop=1, num=n_points, endpoint=False)
     ypred = spop_polynomial(x)
@@ -141,7 +141,9 @@ def main(n_points, save_folder):
     multiplier = np.logspace(
         start=-3, stop=4, num=16, endpoint=False
     )  # np.logspace(start=0,stop=4, num=15)
+    K_range = np.arange(1,11,1)
     folder_as_list = [save_folder]
+
     print("WARNING NOTICE")
     print("Some important parameters are FIXED and NOT DISPLAYED here, inluding:")
     print(
@@ -172,6 +174,7 @@ def main(n_points, save_folder):
             pos_heuristic,
             speed_heuristic,
             multiplier,
+            K_range,
             folder_as_list,
         )
     )
@@ -185,6 +188,7 @@ def main(n_points, save_folder):
             pos_non_heuristic,
             speed_heuristic,
             multiplier,
+            K_range, 
             folder_as_list,
         )
     )
@@ -220,7 +224,7 @@ def main(n_points, save_folder):
     ]
 
     with open(
-        f"./{save_folder}/sop_results_{n_points[0]}.csv", "w+", newline="\n"
+        f"./{save_folder}/c-spop_results_{n_points[0]}.csv", "w+", newline="\n"
     ) as file:
         writer = csv.DictWriter(file, fieldnames=fn, delimiter=";", dialect="excel",quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
