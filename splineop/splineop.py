@@ -413,19 +413,26 @@ def generate_pw_quadratic(
 
         # Set random quadratic term and avoid repetition
         # to ensure the nb of changes
-        if delta:
-            if strategy == 'exact':
-                a_i = delta * np.random.choice(a=[-1,1], size =  1, replace=True)
-            elif strategy == 'geq':
-                a_i = np.random.uniform(low=-3*delta,high=3*delta)
-                while a_i < delta:
-                    a_i = np.random.uniform(low=-3*delta,high=3*delta)
-            else:
-                raise(Exception("Not implemented error")) 
-        else:
+        if i == 1:
+            # sample fist
             a_i = np.random.randint(low=-5, high=5)
-            while a_i == coefficients[0, i - 1]:
+        else: 
+            # sample with minimum jump size
+            if delta:
+                if strategy == 'exact':
+                    jump_i = delta * np.random.choice(a=[-1,1], size =  [1], replace=True)[0]
+                elif strategy == 'geq':
+                    jump_i = np.random.uniform(low=-3*delta,high=3*delta)
+                    while np.abs(jump_i) < delta:
+                        jump_i = np.random.uniform(low=-3*delta,high=3*delta)
+                else:
+                    raise(Exception("Not implemented error")) 
+                a_i = a_i + jump_i
+            else:
                 a_i = np.random.randint(low=-5, high=5)
+                # While loop to avoid repetition
+                while a_i == coefficients[0, i - 1]:
+                    a_i = np.random.randint(low=-5, high=5)
 
         coefficients[:, i] = [a_i, b_i, c_i]
     final_poly = interpolate.PPoly(c=coefficients, x=x_breaks)
