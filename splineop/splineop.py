@@ -337,7 +337,7 @@ def draw_bkps(n_bkps, n_samples, normalized, random_state):
 
 
 def generate_pw_quadratic(
-    n_bkps: int = 5, n_points: int = 1000, normalized=True, random_state: int = None
+    n_bkps: int = 5, n_points: int = 1000, normalized=True, random_state: int = None, delta: float = None, strategy: str = None
 ) -> interpolate.PPoly:
     """
     Randomly generates a piecewise quadratic polynomial.
@@ -347,6 +347,8 @@ def generate_pw_quadratic(
         n_points (int): Total points in the signal.
         normalized (bool) : If True, change-points are converted to [0,1].
         random_state (int) : Random seed for sampling the changes.
+        delta (float): Minimum jump-size.
+        strategy (string): 'exact' jumps of size 'delta', exactly. Others, not implemented yet. 
 
     Returns:
         poly (scipy.interpolate.Polynomial) : Randomly generated polynomial over the interval [0,1] if normalized,
@@ -411,9 +413,19 @@ def generate_pw_quadratic(
 
         # Set random quadratic term and avoid repetition
         # to ensure the nb of changes
-        a_i = np.random.randint(low=-5, high=5)
-        while a_i == coefficients[0, i - 1]:
+        if delta:
+            if strategy == 'exact':
+                a_i = delta * np.random.choice(a=[-1,1], size =  1, replace=True)
+            elif strategy == 'geq':
+                a_i = np.random.uniform(low=-3*delta,high=3*delta)
+                while a_i < delta:
+                    a_i = np.random.uniform(low=-3*delta,high=3*delta)
+            else:
+                raise(Exception("Not implemented error")) 
+        else:
             a_i = np.random.randint(low=-5, high=5)
+            while a_i == coefficients[0, i - 1]:
+                a_i = np.random.randint(low=-5, high=5)
 
         coefficients[:, i] = [a_i, b_i, c_i]
     final_poly = interpolate.PPoly(c=coefficients, x=x_breaks)
