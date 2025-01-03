@@ -1,4 +1,5 @@
 import splineop.splineop as sop
+import costs
 import numpy as np
 from scipy import stats
 import pickle
@@ -139,7 +140,8 @@ def load_and_compute(
         return poly, noised_signal, clean_signal
 
 
-def predict_pipeline(signal, positions, speeds, pen, normalized):
+
+def predict_pipeline(signal, positions, speeds, pen, normalized, K=None):
     """
     Fits model to <signal> and predicts change points.
 
@@ -154,13 +156,22 @@ def predict_pipeline(signal, positions, speeds, pen, normalized):
         model (sop.splineOP): SplineOP model fit to the signal with given data.
 
     """
-    cost = sop.cost_fn()
-    model = sop.splineOP(cost)
+    if K:
+        cost = costs.costConstrained()
+        model = sop.splineOPConstrained(cost)
 
-    model.fit(signal, positions, speeds, normalized)
-    t0 = time.process_time()
-    model.predict(pen)
-    deltat = time.process_time() - t0
+        model.fit(signal, positions, speeds, normalized)
+        t0 = time.process_time()
+        model.predict(K)
+        deltat = time.process_time() - t0
+    else:
+        cost = costs.costPenalized()
+        model = sop.splineOPPenalized(cost)
+
+        model.fit(signal, positions, speeds, normalized)
+        t0 = time.process_time()
+        model.predict(pen)
+        deltat = time.process_time() - t0
     return model, deltat
 
 
