@@ -3,10 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
-./data
-./results
-./analysis_notebooks
-
+data/
+results/
+analysis-notebooks/
+.vscode/
 # C extensions
 *.so
 
