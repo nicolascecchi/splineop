@@ -17,6 +17,7 @@ class splineOPPenalized(object):
     states: float64[:]
     initial_speeds: float64[:]
     bkps: float64[:]
+    knots: float64[:]
     state_idx_sequence: int64[:]
     time_path_mat: int64[:, :]
     soc: float64[:, :]
@@ -107,19 +108,20 @@ class splineOPPenalized(object):
         return self.backtrack_solution()
 
 
-# splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
-# @jitclass(splineop_spec_Constrained)
+splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
+@jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
     n_points: int64
     n_states: int64
     states: float64[:]
     initial_speeds: float64[:]
-    bkps: float64[:]
+    bkps: int64[:]
+    knots: int64[:]
     state_idx_sequence: int64[:]
-    time_path_mat: int64[:, :]
-    soc: float64[:, :]
-    state_path_mat: int64[:, :]
-    speed_path_mat: float64[:, :]
+    time_path_mat: int64[:, :, :]
+    soc: float64[:, :, :]
+    state_path_mat: int64[:, :, :]
+    speed_path_mat: float64[:, :, :]
 
     def __init__(self, cost_fn):
         self.cost = cost_fn
@@ -153,7 +155,7 @@ class splineOPConstrained(object):
         # but helps in terms of clarity with the indexing.
         self.soc = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
-        )
+                    )
         self.soc[0] = 0  # Dummy
         self.time_path_mat = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
@@ -180,12 +182,12 @@ class splineOPConstrained(object):
                         soc=self.soc[k - 1],
                         k=k,
                     )
-        return self.backtrack_solution()
+        self.backtrack_solution()
 
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
         K = self.soc.shape[0]
         t = self.soc.shape[1] - 1
-        bkps = np.array([t], dtype=np.int32)
+        bkps = np.array([t], dtype=np.int64)
         state_idx_sequence = np.array(
             [int(np.argmin(self.soc[-1, -1]))], dtype=np.int64
         )
