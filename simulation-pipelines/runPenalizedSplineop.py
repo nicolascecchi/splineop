@@ -61,7 +61,7 @@ def f(inputs):
 
     # Compute metrics
     total_error = np.min(model.soc[-1])
-    pred_n_bkps = len(model.bkps) - 2
+    pred_n_bkps = len(model.bkps)
     spop_polynomial = sop.get_polynomial_from_penalized_model(model)
     
     x = np.linspace(start=0, stop=1, num=n_points, endpoint=False)
@@ -70,11 +70,11 @@ def f(inputs):
     total_emp_error = np.sum((ypred-noised_signal)**2)
 
     true_bkps = np.round(poly.x[1:-1] * n_points)
-    pred_breaks = model.bkps[1:-1]
+    pred_breaks = model.bkps
     annotation_error = np.abs(pred_n_bkps - n_bkps)
 
     true_bkps_x = np.round(poly.x[1:] * n_points)  # for computations only
-    pred_breaks_x = model.bkps[1:]
+    pred_breaks_x = np.concat([model.bkps,np.array([model.n_points])])
 
     pr1, rc1 = precision_recall(true_bkps_x, pred_breaks_x, np.round(0.01 * n_points))
     pr25, rc25 = precision_recall(
