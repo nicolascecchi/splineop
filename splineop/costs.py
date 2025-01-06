@@ -256,7 +256,7 @@ class costPenalized(object):
 # splineop_spec = [
 
 
-# @jitclass
+@jitclass
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
@@ -433,9 +433,9 @@ class costConstrained(object):
         self,
         end: int,
         p_end_idx: int,
-        speed_matrix: np.ndarray,
+        speed_matrix: np.ndarray[np.float64, np.float64],
         initial_speeds: np.ndarray,
-        soc: np.ndarray,
+        soc: np.ndarray[np.float64, np.float64],
         k: int,
     ) -> tuple[float, float, float, float]:
         """
@@ -484,7 +484,7 @@ class costConstrained(object):
                         end=end,
                         p_start_val=self.states[p_start_idx],
                         p_end_val=self.states[p_end_idx],
-                        v_start_val=speed_matrix[mid, p_start_idx],
+                        v_start_val= speed_matrix[mid, p_start_idx],
                     )
                     if (
                         soc[mid, p_start_idx] + new_seg_error
