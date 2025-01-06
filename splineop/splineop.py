@@ -320,7 +320,7 @@ def get_polynomial_from_constrained_model(model) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
-    intbkps = model.bkps.astype(int)
+    intbkps = model.knots.astype(int)
     n_points = model.n_points
     step_size = 1 / n_points
     n_steps = np.diff(intbkps)  # between change points
@@ -338,7 +338,7 @@ def get_polynomial_from_constrained_model(model) -> interpolate.PPoly:
     for bkp_idx in range(1, L):
         # Get the end speed for this segment
         segment_start_speed = model.speed_path_mat[
-            bkp_idx, intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
+            bkp_idx, intbkps[bkp_idx-1], model.state_idx_sequence[bkp_idx]
         ]
         speed = np.append(
             arr=speed,
