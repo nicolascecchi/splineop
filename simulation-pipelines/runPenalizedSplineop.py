@@ -1,6 +1,6 @@
 from __future__ import division
 import sys
-from splineop import splineop as sop
+from splineop import splineop as spop
 from splineop import sputils as spu
 import itertools
 import multiprocessing
@@ -62,7 +62,7 @@ def f(inputs):
     # Compute metrics
     total_error = np.min(model.soc[-1])
     pred_n_bkps = len(model.bkps)
-    spop_polynomial = sop.get_polynomial_from_penalized_model(model)
+    spop_polynomial = spop.get_polynomial_from_penalized_model(model)
     
     x = np.linspace(start=0, stop=1, num=n_points, endpoint=False)
     ypred = spop_polynomial(x)
@@ -107,7 +107,7 @@ def f(inputs):
         "pr5": pr5,  # precision 5%
         "rc5": rc5,  # recall 5%
         "annotation_error": annotation_error,  # 'annotation_error'
-        "algorithm": "sop",
+        "algorithm": "spop",
         "time": run_time,
         "state_idx_seq":model.state_idx_sequence,
     }
