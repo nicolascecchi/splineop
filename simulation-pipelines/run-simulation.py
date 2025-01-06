@@ -20,7 +20,7 @@ if args.savefolder is None:
         .replace(" ", "-")
         .replace(":", "-")[0:16]
     )
-    savefolder = args.algo + "-" + str(args.npoints) + "-" + savefolder
+    savefolder = 'results/' + args.algo + "-" + str(args.npoints) + "-" + savefolder
     args.savefolder = savefolder
 if __name__ == "__main__":
     match args.algo:
