@@ -59,16 +59,15 @@ class splineOPPenalized(object):
         bkps = np.hstack((np.array([0], dtype=np.int64), bkps))
         # Include extremes so that we can reconstruct a scipy.interpolate.Polynomial
         # Directly from this attribute
-        self.bkps = bkps
+        self.knots = bkps
         # "Real" changepoints are the ones that are useful for the user
         # Exlucding endpoints
-        real_bkps = self.bkps[1:-1]
+        self.bkps = bkps[1:-1]
         self.state_idx_sequence = state_idx_sequence
 
         # if self.cost.normalized:
         #    self.bkps = self.bkps / self.n_points
         #    real_bkps = real_bkps / self.n_points
-        return real_bkps
 
     def predict(self, penalty=0):
         # Case with change points
@@ -201,8 +200,9 @@ class splineOPConstrained(object):
 
             bkps = np.concat((previous_cp, bkps))
             state_idx_sequence = np.concat((previous_state, state_idx_sequence))
+        self.knots = bkps
         self.bkps = bkps[1:-1]
-        self.state_idx_sequence = state_idx_sequence[1:-1]
+        self.state_idx_sequence = state_idx_sequence
 
 
 def plot_pw_results(
