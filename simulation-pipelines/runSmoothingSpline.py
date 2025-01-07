@@ -105,19 +105,18 @@ def f(inputs):
         writer.writerow(results)
 
 
-def main(n_points, save_folder):
+def main(n_points, save_folder, heuristic, max_signals, signal_n_bkps):
     # assert len(sys.argv) == 3, f"Not enough arguments. Expected 2, received {len(sys.argv)-1}"
     # assert int(sys.argv[1]) in [500, 1000, 2000], f"n_points must be one of 500, 1000, 2000"
     # Read input
     n_points = [n_points]
-    # save_folder = sys.argv[2]
     if save_folder not in os.listdir():
         os.mkdir(save_folder)
+    # Signals to analyze
+    n_bkps = signal_n_bkps
+    sample_seed = range(0, max_signals) # (0,50)
+    noise_idx = noise
 
-    # Set variables
-    n_bkps = range(1, 6)
-    sample_seed = range(0, 50)
-    noise_idx = [0, 1, 2]
     multiplier = np.logspace(
         start=-3, stop=4, num=16, endpoint=False
     )  # np.logspace(start=0,stop=4, num=15)

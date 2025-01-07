@@ -119,24 +119,25 @@ def f(inputs):
         writer.writerow(results)
 
 
-def main(n_points, save_folder):
+def main(n_points, save_folder, heuristic, max_signals, signal_n_bkps, noise):
     # assert len(sys.argv) == 3, f"Not enough arguments. 2 expected, received {len(sys.argv)-1}"
     # assert int(sys.argv[1]) in [500, 1000, 2000], f"n_points must be one of 500, 1000, 2000"
 
     n_points = [n_points]
-    # save_folder = sys.argv[2]
     if save_folder not in os.listdir():
         os.mkdir(save_folder)
-    n_bkps = range(1, 6)
-    sample_seed = range(0, 50)
-    noise_idx = [0, 1, 2]
+    # Signals to analyze
+    n_bkps = signal_n_bkps
+    sample_seed = range(0, max_signals) # (0,50)
+    noise_idx = noise
+
     nstates = np.array([5, 10, 15, 20])
     nstates_placeholder = [
         1
     ]  # placeholder just for easy of computatiosn, it is ignored for non_heuristics.
     pos_non_heuristic = ["truth"]
     speed_heuristic = ["truth"]
-    pos_heuristic = ["uniform", "qtiles"]
+    pos_heuristic = ["qtiles"]
     #speed_heuristic = ["truth", "linreg"]  # ['linreg']#
     multiplier = np.logspace(
         start=-3, stop=4, num=16, endpoint=False
@@ -164,8 +165,25 @@ def main(n_points, save_folder):
     print(f"starting time: {datetime.datetime.today()}")
     print("-----------------------------------------------------------" * 3)
 
-    heuristic_list = list(
-        itertools.product(
+   
+    if heuristic != 'truth':
+        non_heuristic_list = list(
+            itertools.product(
+                n_bkps,
+                sample_seed,
+                noise_idx,
+                n_points,
+                nstates_placeholder,
+                pos_non_heuristic,
+                speed_heuristic,
+                multiplier,
+                K_range, 
+                folder_as_list,
+            )
+        )
+    else:
+        heuristic_list = list(
+            itertools.product(
             n_bkps,
             sample_seed,
             noise_idx,
@@ -176,24 +194,16 @@ def main(n_points, save_folder):
             multiplier,
             K_range,
             folder_as_list,
+            )
         )
-    )
-    non_heuristic_list = list(
-        itertools.product(
-            n_bkps,
-            sample_seed,
-            noise_idx,
-            n_points,
-            nstates_placeholder,
-            pos_non_heuristic,
-            speed_heuristic,
-            multiplier,
-            K_range, 
-            folder_as_list,
-        )
-    )
 
-    final_running_list = non_heuristic_list #+ heuristic_list
+    match heuristic:
+        case "truth":
+            final_running_list = non_heuristic_list      
+        case "quantiles":
+            final_running_list = heuristic_list
+        case "both": 
+            final_running_list = non_heuristic_list + heuristic_list
     fn = [
         "n_bkps",
         "n_points",
