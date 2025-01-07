@@ -206,6 +206,29 @@ class splineOPConstrained(object):
         self.bkps = bkps[1:-1]
         self.state_idx_sequence = state_idx_sequence
 
+    def backtrack_specific(self, K):
+        assert K <= self.soc.shape[0]
+        K = K+2 # Need to explain more the relation with the dimensions of the matrix
+        t = self.soc.shape[1] - 1
+        bkps = np.array([t], dtype=np.int64)
+        state_idx_sequence = np.array(
+            [int(np.argmin(self.soc[K, -1]))], dtype=np.int64
+        )
+
+        for k in range(K - 1, 0, -1):  # 0 is not included
+            previous_cp = np.array(
+                [self.time_path_mat[k, bkps[0], state_idx_sequence[0]]]
+            )
+            previous_state = np.array(
+                [self.state_path_mat[k, bkps[0], state_idx_sequence[0]]]
+            )
+
+            bkps = np.concat((previous_cp, bkps))
+            state_idx_sequence = np.concat((previous_state, state_idx_sequence))
+        self.knots = bkps
+        self.bkps = bkps[1:-1]
+        self.state_idx_sequence = state_idx_sequence
+
 
 def plot_pw_results(
     polynomial,
