@@ -266,108 +266,122 @@ def plot_pw_results(
     plt.show()
 
 
-def get_polynomial_from_penalized_model(model) -> interpolate.PPoly:
+def get_polynomial_from_penalized_model(model, method='scipy') -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
-    intbkps = model.bkps.astype(int)
-    n_points = model.n_points
-    step_size = 1 / n_points
-    n_steps = np.diff(intbkps)  # between change points
-    L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
+    if method=='scipy':
+        knots = model.knots/model.n_points
+        values = model.states[model.state_idx_sequence]
+        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/n_points, task=-1)
+        polynomial = interpolate.PPoly.from_spline(tck)
 
-    # First segment parameters
-    segment_start_speed = model.speed_path_mat[0, model.state_idx_sequence[0]]
-    speed = np.array([segment_start_speed])
-    acc = np.array(
-        []
-    )  # Acceleration here depends on final speed, it is added afterwards
+    else:
+        intbkps = model.bkps.astype(int)
+        n_points = model.n_points
+        step_size = 1 / n_points
+        n_steps = np.diff(intbkps)  # between change points
+        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
 
-    # Rest of the points
-    # Iterate over polynomial segments
-    for bkp_idx in range(1, L):
-        # Get the end speed for this segment
-        segment_start_speed = model.speed_path_mat[
-            intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
-        ]
-        speed = np.append(
-            arr=speed,
-            values=segment_start_speed,
-        )
-        # Compute acceleration for the previous segment
-        prev_seg_acc = np.array(
-            [
-                (speed[bkp_idx] - speed[bkp_idx - 1])
-                / (2 * n_steps[bkp_idx - 1] * step_size)
+        # First segment parameters
+        segment_start_speed = model.speed_path_mat[0, model.state_idx_sequence[0]]
+        speed = np.array([segment_start_speed])
+        acc = np.array(
+            []
+        )  # Acceleration here depends on final speed, it is added afterwards
+
+        # Rest of the points
+        # Iterate over polynomial segments
+        for bkp_idx in range(1, L):
+            # Get the end speed for this segment
+            segment_start_speed = model.speed_path_mat[
+                intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
             ]
+            speed = np.append(
+                arr=speed,
+                values=segment_start_speed,
+            )
+            # Compute acceleration for the previous segment
+            prev_seg_acc = np.array(
+                [
+                    (speed[bkp_idx] - speed[bkp_idx - 1])
+                    / (2 * n_steps[bkp_idx - 1] * step_size)
+                ]
+            )
+            acc = np.concatenate((acc, prev_seg_acc))
+
+        # Final speed and acceleration
+        final_speed = model.speed_path_mat[intbkps[L], model.state_idx_sequence[L]]
+        prev_seg_acc = np.array(
+            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
         )
         acc = np.concatenate((acc, prev_seg_acc))
 
-    # Final speed and acceleration
-    final_speed = model.speed_path_mat[intbkps[L], model.state_idx_sequence[L]]
-    prev_seg_acc = np.array(
-        [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
-    )
-    acc = np.concatenate((acc, prev_seg_acc))
+        # Polynomial parameters and construction
+        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
+        x = intbkps
+        polynomial = interpolate.PPoly(c=c, x=x * step_size)
 
-    # Polynomial parameters and construction
-    c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
-    x = intbkps
-    p = interpolate.PPoly(c=c, x=x * step_size)
-
-    return p
+    return polynomial
 
 
-def get_polynomial_from_constrained_model(model) -> interpolate.PPoly:
+def get_polynomial_from_constrained_model(model, method='scipy') -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
-    intbkps = model.knots.astype(int)
-    n_points = model.n_points
-    step_size = 1 / n_points
-    n_steps = np.diff(intbkps)  # between change points
-    L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
+    if method=='scipy':
+        knots = model.knots/model.n_points
+        values = model.states[model.state_idx_sequence]
+        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/n_points, task=-1)
+        polynomial = interpolate.PPoly.from_spline(tck)
 
-    # First segment parameters
-    segment_start_speed = model.speed_path_mat[0, 0, model.state_idx_sequence[0]]
-    speed = np.array([segment_start_speed])
-    acc = np.array(
-        []
-    )  # Acceleration here depends on final speed, it is added afterwards
+    else:
+        intbkps = model.knots.astype(int)
+        n_points = model.n_points
+        step_size = 1 / n_points
+        n_steps = np.diff(intbkps)  # between change points
+        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
 
-    # Rest of the points
-    # Iterate over polynomial segments
-    for bkp_idx in range(1, L):
-        # Get the end speed for this segment
-        segment_start_speed = model.speed_path_mat[
-            bkp_idx, intbkps[bkp_idx-1], model.state_idx_sequence[bkp_idx]
-        ]
-        speed = np.append(
-            arr=speed,
-            values=segment_start_speed,
-        )
-        # Compute acceleration for the previous segment
-        prev_seg_acc = np.array(
-            [
-                (speed[bkp_idx] - speed[bkp_idx - 1])
-                / (2 * n_steps[bkp_idx - 1] * step_size)
+        # First segment parameters
+        segment_start_speed = model.speed_path_mat[0, 0, model.state_idx_sequence[0]]
+        speed = np.array([segment_start_speed])
+        acc = np.array(
+            []
+        )  # Acceleration here depends on final speed, it is added afterwards
+
+        # Rest of the points
+        # Iterate over polynomial segments
+        for bkp_idx in range(1, L):
+            # Get the end speed for this segment
+            segment_start_speed = model.speed_path_mat[
+                bkp_idx, intbkps[bkp_idx-1], model.state_idx_sequence[bkp_idx]
             ]
+            speed = np.append(
+                arr=speed,
+                values=segment_start_speed,
+            )
+            # Compute acceleration for the previous segment
+            prev_seg_acc = np.array(
+                [
+                    (speed[bkp_idx] - speed[bkp_idx - 1])
+                    / (2 * n_steps[bkp_idx - 1] * step_size)
+                ]
+            )
+            acc = np.concatenate((acc, prev_seg_acc))
+
+        # Final speed and acceleration
+        final_speed = model.speed_path_mat[L, intbkps[L], model.state_idx_sequence[L]]
+        prev_seg_acc = np.array(
+            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
         )
         acc = np.concatenate((acc, prev_seg_acc))
 
-    # Final speed and acceleration
-    final_speed = model.speed_path_mat[L, intbkps[L], model.state_idx_sequence[L]]
-    prev_seg_acc = np.array(
-        [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
-    )
-    acc = np.concatenate((acc, prev_seg_acc))
+        # Polynomial parameters and construction
+        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
+        x = intbkps
+        polynomial = interpolate.PPoly(c=c, x=x * step_size)
 
-    # Polynomial parameters and construction
-    c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
-    x = intbkps
-    p = interpolate.PPoly(c=c, x=x * step_size)
-
-    return p
+    return polynomial
 
 
 def draw_bkps(n_bkps, n_samples, normalized, random_state):
@@ -464,8 +478,10 @@ def generate_pw_quadratic(
     coefficients[1, 0] = np.random.uniform(-5, 5)
     coefficients[2, 0] = np.random.uniform(-5, 5)
     poly = interpolate.PPoly(c=coefficients, x=x_breaks)
+    
+    a_i = coefficients[0, 0]
     for i in range(1, n_poly):
-        # Previous segment endpoint
+        # Previous segment endpoint    
         x_curr = x_breaks[i]
 
         # Set the constant term for continuity
@@ -476,28 +492,28 @@ def generate_pw_quadratic(
 
         # Set random quadratic term and avoid repetition
         # to ensure the nb of changes
-        if i == 1:
-            # sample fist
-            a_i = np.random.randint(low=-5, high=5)
-        else:
-            # sample with minimum jump size
-            if delta:
-                if strategy == "exact":
-                    jump_i = (
-                        delta * np.random.choice(a=[-1, 1], size=[1], replace=True)[0]
-                    )
-                elif strategy == "geq":
+        # sample with minimum jump size
+        if delta:
+            if strategy == "equal":
+                jump_i = (
+                    delta * np.random.choice(a=[-1, 1], size=[1], replace=True)[0]
+                )
+                
+            elif strategy == "geq":
+                jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
+                while np.abs(jump_i) < delta:
                     jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
-                    while np.abs(jump_i) < delta:
-                        jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
-                else:
-                    raise (Exception("Not implemented error"))
-                a_i = a_i + jump_i
             else:
+                raise (Exception("Not implemented error"))
+            print('jump', jump_i)
+            print('curr a_i', a_i)
+            a_i = a_i + jump_i
+            print('new a_i', a_i)
+        else:
+            a_i = np.random.randint(low=-5, high=5)
+            # While loop to avoid repetition
+            while a_i == coefficients[0, i - 1]:
                 a_i = np.random.randint(low=-5, high=5)
-                # While loop to avoid repetition
-                while a_i == coefficients[0, i - 1]:
-                    a_i = np.random.randint(low=-5, high=5)
 
         coefficients[:, i] = [a_i, b_i, c_i]
     final_poly = interpolate.PPoly(c=coefficients, x=x_breaks)
