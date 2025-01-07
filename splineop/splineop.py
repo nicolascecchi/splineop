@@ -266,14 +266,15 @@ def plot_pw_results(
     plt.show()
 
 
-def get_polynomial_from_penalized_model(model, method='scipy') -> interpolate.PPoly:
+def get_polynomial_from_penalized_model(model,y, method='scipy') -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
     if method=='scipy':
+        x = np.linspace(0,1,1000,endpoint=False)
         knots = model.knots/model.n_points
         values = model.states[model.state_idx_sequence]
-        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/n_points, task=-1)
+        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/model.n_points, task=-1)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
@@ -325,14 +326,21 @@ def get_polynomial_from_penalized_model(model, method='scipy') -> interpolate.PP
     return polynomial
 
 
-def get_polynomial_from_constrained_model(model, method='scipy') -> interpolate.PPoly:
+def get_polynomial_from_constrained_model(model, y, method='scipy') -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
     if method=='scipy':
-        knots = model.knots/model.n_points
+        x = np.linspace(0,1,1000,endpoint=False)
         values = model.states[model.state_idx_sequence]
-        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/n_points, task=-1)
+        bkps = model.bkps
+        if len(bkps) > 0:
+            if bkps[0] < 3:
+                bkps[0] = 3
+            if bkps[-1] > 997:
+                bkps[-1] = 997
+            
+        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=bkps/model.n_points, task=-1)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
