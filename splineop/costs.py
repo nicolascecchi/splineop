@@ -228,13 +228,16 @@ class costPenalized(object):
         # Cases with change point
         for p_start_idx in range(self.n_states):
             for mid in range(1, end):
-                new_seg_error, new_end_speed = self.error(
-                    start=mid,
-                    end=end,
-                    p_start_val=self.states[p_start_idx],
-                    p_end_val=self.states[p_end_idx],
-                    v_start_val=speed_matrix[mid, p_start_idx],
-                )
+                if (end-mid) <= 2:
+                    new_seg_error, new_end_speed = np.inf, 0
+                else:
+                    new_seg_error, new_end_speed = self.error(
+                        start=mid,
+                        end=end,
+                        p_start_val=self.states[p_start_idx],
+                        p_end_val=self.states[p_end_idx],
+                        v_start_val=speed_matrix[mid, p_start_idx],
+                    )
                 if (
                     soc[mid, p_start_idx] + new_seg_error + penalty
                 ) < curr_optimal_cost_val:  # What happens if it is equal ??
