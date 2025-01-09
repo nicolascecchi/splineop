@@ -454,11 +454,11 @@ class costConstrained(object):
         """
         # No break
         curr_optimal_cost_val = np.inf
-        curr_optimal_speed_val = np.inf
-        curr_optimal_start_state = None
-        curr_optimal_time = 0
+        curr_optimal_speed_val = 0
+        curr_optimal_start_state = np.iinfo(np.int64).max
+        curr_optimal_time = np.iinfo(np.int64).max
 
-        # K = 1, cad 0 changes
+        # K = 1, means 0 changes
         if k == 1:
             for p_start_idx in range(self.n_states):
                 for v_start_val in initial_speeds:
@@ -478,21 +478,28 @@ class costConstrained(object):
         # Cases with change point
         else:
             for p_start_idx in range(self.n_states):
-                for mid in range(k - 1, end):
-                    new_seg_error, new_end_speed = self.error(
-                        start=mid,
-                        end=end,
-                        p_start_val=self.states[p_start_idx],
-                        p_end_val=self.states[p_end_idx],
-                        v_start_val= speed_matrix[mid, p_start_idx],
-                    )
+                    # (k-1)*N means that we count N points for each of the
+                    # previous segments.  Here we use N=1
+                for mid in range(k-1, end-2):
+                    # Penalize segments shorter than k+1 with infinite cost
+                    if (end-2 - mid) < k+1:
+                        new_seg_error = np.inf
+                    # Compute cost when segment length is admissible
+                    else:
+                        new_seg_error, new_end_speed = self.error(
+                            start=mid,
+                            end=end,
+                            p_start_val=self.states[p_start_idx],
+                            p_end_val=self.states[p_end_idx],
+                            v_start_val= speed_matrix[mid, p_start_idx],
+                        )
                     if (
                         soc[mid, p_start_idx] + new_seg_error
                     ) < curr_optimal_cost_val:  # What happens if it is equal ??
                         curr_optimal_cost_val = soc[mid, p_start_idx] + new_seg_error
                         curr_optimal_speed_val = new_end_speed
                         curr_optimal_start_state = p_start_idx
-                        curr_optimal_time = mid
+                        curr_optimal_time = mid                    
         return (
             curr_optimal_cost_val,
             curr_optimal_start_state,
