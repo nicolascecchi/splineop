@@ -149,14 +149,19 @@ class splineOPConstrained(object):
         # Internally we think the procedure in terms of nb of segments
         # therefore we need dimension K+2 because we index 0 as a dummy
         # and then have indexes 1 through K+1, representing the segments
+        # Since Python is index-0, we use dimension K+2
 
         # The fist dimension of SOC is used as a dummy with all 0s
         # The first dimensions of the others is a dummy never used
         # but helps in terms of clarity with the indexing.
-        self.soc = np.empty(
+        self.soc = np.ones(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
                     )
+        self.soc = self.soc * np.inf
         self.soc[0] = 0  # Dummy
+        self.soc[1] = np.inf # Puts infinite weight to segments w/o change 
+                             # to avoid having sthing like [0..2][3...T] 
+                             # Avoiding a very short first segment for sure. 
         self.time_path_mat = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
@@ -167,7 +172,7 @@ class splineOPConstrained(object):
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
         )
         for k in range(1, K + 2):
-            for end in range(k, self.n_points + 1):
+            for end in range(k+2, self.n_points + 1):
                 for p_end_idx in range(self.n_states):
                     (
                         self.soc[k, end, p_end_idx],
