@@ -5,7 +5,7 @@ from numba import int64, float64, int64, float64
 from scipy import interpolate
 from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
-
+import pdb
 
 @jitclass
 class costPenalized(object):
@@ -259,7 +259,7 @@ class costPenalized(object):
 # splineop_spec = [
 
 
-@jitclass
+#@jitclass
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
@@ -458,8 +458,8 @@ class costConstrained(object):
         # No break
         curr_optimal_cost_val = np.inf
         curr_optimal_speed_val = 0
-        curr_optimal_start_state = np.iinfo(np.int64).max
-        curr_optimal_time = np.iinfo(np.int64).max
+        curr_optimal_start_state = 0
+        curr_optimal_time = 0
 
         # K = 1, means 0 changes
         if k == 1:
@@ -483,9 +483,9 @@ class costConstrained(object):
             for p_start_idx in range(self.n_states):
                     # (k-1)*N means that we count N points for each of the
                     # previous segments.  Here we use N=1
-                for mid in range(k-1, end-2):
+                for mid in range(k-1, end):
                     # Penalize segments shorter than k+1 with infinite cost
-                    if (end-2 - mid) < k+1:
+                    if (end - mid) < 3:
                         new_seg_error = np.inf
                     # Compute cost when segment length is admissible
                     else:
