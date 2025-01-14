@@ -6,7 +6,7 @@ from scipy import interpolate
 from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
 from .costs import *
-
+import pdb
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
 
 
@@ -171,9 +171,9 @@ class splineOPConstrained(object):
         self.speed_path_mat = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
         )
-        for k in range(1, K + 2):
-            for end in range(k+2, self.n_points + 1):
-                for p_end_idx in range(self.n_states):
+        for k in range(1, K + 2): # nb of segments
+            for end in range(k, self.n_points + 1): # nb of points seen
+                for p_end_idx in range(self.n_states): # each state
                     (
                         self.soc[k, end, p_end_idx],
                         self.state_path_mat[k, end, p_end_idx],
@@ -541,10 +541,7 @@ def generate_pw_quadratic(
                     jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
             else:
                 raise (Exception("Not implemented error"))
-            print('jump', jump_i)
-            print('curr a_i', a_i)
             a_i = a_i + jump_i
-            print('new a_i', a_i)
         else:
             a_i = np.random.randint(low=-5, high=5)
             # While loop to avoid repetition
