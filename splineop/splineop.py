@@ -583,7 +583,7 @@ def generate_pw_quadratic(
     final_poly = interpolate.PPoly(c=coefficients, x=x_breaks)
     return final_poly
 
-def get_polynomial_knots_and_states(knots, states,model):
+def get_polynomial_knots_and_states(model):
      
     knots = model.knots # includes 0 and n_points
     state_sequence = model.states[model.state_idx_sequence] # includes first and last
@@ -596,7 +596,7 @@ def get_polynomial_knots_and_states(knots, states,model):
 
     dknots = np.diff(knots/n_points)
     p_i = state_sequence[0]
-    dp = np.diff(states)
+    dp = np.diff(state_sequence)
     v_i = speeds[0]
 
     for i in range(len(dknots)-1):        
@@ -605,11 +605,11 @@ def get_polynomial_knots_and_states(knots, states,model):
         # Exits
         v_i = v_i + 2 * a_i * dknots[i]
         coeff[1,i+1] = v_i
-        p_i = states[i+1]
+        p_i = state_sequence[i+1]
     # Coeff[1/2, last] has the final point and exit speed, but
     # we cannot get an acceleration there (nor are we interested in it)
     # but it is eassier to loop around this way
-    coeff = coeff[:,:-1]
-    knots = knots[:-1]/n_points
+    coeff = coeff[:,:]
+    knots = knots[:]/n_points
     poly = interpolate.PPoly(coeff, knots)
     return poly
