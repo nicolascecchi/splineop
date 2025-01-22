@@ -259,7 +259,7 @@ class costPenalized(object):
 # splineop_spec = [
 
 
-#@jitclass
+@jitclass
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
