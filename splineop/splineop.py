@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, objmode
 from numba.experimental import jitclass
 from numba import int64, float64, int64, float64
 from scipy import interpolate
@@ -7,9 +7,10 @@ from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
 from splineop.costs import *
 import pdb
+from timeit import default_timer as timer 
+
+
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
-
-
 @jitclass(splineop_spec_Pen)
 class splineOPPenalized(object):
     n_points: int64
@@ -23,6 +24,8 @@ class splineOPPenalized(object):
     soc: float64[:, :]
     state_path_mat: int64[:, :]
     speed_path_mat: float64[:, :]
+    execution_time: float64
+    t_start : float64
 
     def __init__(self, cost_fn):
         self.cost = cost_fn
@@ -72,6 +75,7 @@ class splineOPPenalized(object):
 
     def predict(self, penalty=0):
         # Case with change points
+        
         self.soc = np.empty(shape=(self.n_points + 1, self.n_states), dtype=np.float64)
         self.soc[0, :] = 0
         self.time_path_mat = np.empty(
@@ -83,6 +87,8 @@ class splineOPPenalized(object):
         self.speed_path_mat = np.empty(
             shape=(self.n_points + 1, self.n_states), dtype=np.float64
         )
+        with objmode(t_start='float64'):
+            t_start = timer()
         for end in range(1, self.n_points + 1):
             for p_end_idx in range(self.n_states):
                 (
@@ -105,6 +111,9 @@ class splineOPPenalized(object):
                     self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
                         np.float64(opt_start_speed)
                     )
+        with objmode(t_end='float64'):
+            t_end = timer()
+        self.execution_time = t_end - t_start
         return self.backtrack_solution()
 
 
@@ -122,6 +131,8 @@ class splineOPConstrained(object):
     soc: float64[:, :, :]
     state_path_mat: int64[:, :, :]
     speed_path_mat: float64[:, :, :]
+    execution_time: float64
+    execution_time_k : float64[:]
 
     def __init__(self, cost_fn):
         self.cost = cost_fn
@@ -171,7 +182,11 @@ class splineOPConstrained(object):
         self.speed_path_mat = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
         )
+        self.execution_time_k= np.zeros(shape=(K+2), dtype=np.float64)
+        
         for k in range(1, K + 2): # nb of segments
+            with objmode(t_start_k='float64'):
+                t_start_k = timer()
             for end in range(k, self.n_points + 1): # nb of points seen
                 for p_end_idx in range(self.n_states): # each state
                     (
@@ -187,6 +202,10 @@ class splineOPConstrained(object):
                         soc=self.soc[k - 1],
                         k=k,
                     )
+            with objmode(t_end_k='float64'):
+                t_end_k = timer()
+            self.execution_time_k[k] = t_end_k - t_start_k
+        self.execution_time = np.sum(self.execution_time_k)
         self.backtrack_solution()
 
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
