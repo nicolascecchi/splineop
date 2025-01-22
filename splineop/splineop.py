@@ -5,7 +5,7 @@ from numba import int64, float64, int64, float64
 from scipy import interpolate
 from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
-from .costs import *
+from splineop.costs import *
 import pdb
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
 
@@ -294,15 +294,24 @@ def plot_pw_results(
     plt.show()
 
 
-def get_polynomial_from_penalized_model(model,y, method='scipy') -> interpolate.PPoly:
+def get_polynomial_from_penalized_model(model,y, method='scipy', s=None) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
     if method=='scipy':
-        x = np.linspace(0,1,1000,endpoint=False)
-        knots = model.knots/model.n_points
+        x = np.linspace(0,1,model.n_points,endpoint=False)
         values = model.states[model.state_idx_sequence]
-        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=model.bkps/model.n_points, task=-1)
+        bkps = model.bkps
+        if len(bkps) > 0:
+            if bkps[0] < 3:
+                bkps[0] = 3
+            if bkps[-1] > model.n_points-3:
+                bkps[-1] = model.n_points-3
+        if s == None:
+            s = 0.1 # default value
+        t = np.hstack(tup=(np.array([0,0,0]), bkps/model.n_points))
+        t = np.hstack((t, np.array([1,1,1])))
+        tck = interpolate.make_splrep(x,y,xb=x.min(),xe=x.max(),k=2,t=t, s=s)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
@@ -354,21 +363,24 @@ def get_polynomial_from_penalized_model(model,y, method='scipy') -> interpolate.
     return polynomial
 
 
-def get_polynomial_from_constrained_model(model, y, method='scipy') -> interpolate.PPoly:
+def get_polynomial_from_constrained_model(model, y, method='scipy',s=None) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
     if method=='scipy':
-        x = np.linspace(0,1,1000,endpoint=False)
+        x = np.linspace(0,1,model.n_points,endpoint=False)
         values = model.states[model.state_idx_sequence]
         bkps = model.bkps
         if len(bkps) > 0:
             if bkps[0] < 3:
                 bkps[0] = 3
-            if bkps[-1] > 997:
-                bkps[-1] = 997
-            
-        tck = interpolate.splrep(x,y,xb=0,xe=1,k=2,t=bkps/model.n_points, task=-1)
+            if bkps[-1] > model.n_points-3:
+                bkps[-1] = model.n_points-3
+        if s == None:
+            s = 0.1 # default value
+        t = np.hstack((np.array([0,0,0]), bkps/model.n_points))
+        t = np.hstack((t, np.array([1,1,1])))
+        tck = interpolate.make_splrep(x,y,xb=x.min(),xe=x.max(),k=2,t=t, s=s)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
