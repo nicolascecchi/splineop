@@ -161,6 +161,8 @@ class splineOPConstrained(object):
         # therefore we need dimension K+2 because we index 0 as a dummy
         # and then have indexes 1 through K+1, representing the segments
         # Since Python is index-0, we use dimension K+2
+        # That is: Over axis of K, 0 is dummy, 1 is 1 segments (no change), 
+        # 2 is 2 segments (1 change),...,K+1 is K+1 segments (K changes)
 
         # The fist dimension of SOC is used as a dummy with all 0s
         # The first dimensions of the others is a dummy never used
@@ -382,7 +384,7 @@ def get_polynomial_from_penalized_model(model,y, method='scipy', s=None) -> inte
     return polynomial
 
 
-def get_polynomial_from_constrained_model(model, y, method='scipy',s=None) -> interpolate.PPoly:
+def get_polynomial_from_constrained_model(model, y, method='scipy') -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
@@ -395,11 +397,9 @@ def get_polynomial_from_constrained_model(model, y, method='scipy',s=None) -> in
                 bkps[0] = 3
             if bkps[-1] > model.n_points-3:
                 bkps[-1] = model.n_points-3
-        if s == None:
-            s = 0.1 # default value
         t = np.hstack((np.array([0,0,0]), bkps/model.n_points))
         t = np.hstack((t, np.array([1,1,1])))
-        tck = interpolate.make_splrep(x,y,xb=x.min(),xe=x.max(),k=2,t=t, s=s)
+        tck = interpolate.make_lsq_spline(x,y,t=t,k=2,)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
@@ -606,6 +606,7 @@ def get_polynomial_knots_and_states(model):
         v_i = v_i + 2 * a_i * dknots[i]
         coeff[1,i+1] = v_i
         p_i = state_sequence[i+1]
+    coeff[0,len(dknots)-1] = (dp[len(dknots)-1])/(dknots[len(dknots)-1])**2 - v_i / dknots[len(dknots)-1]
     # Coeff[1/2, last] has the final point and exit speed, but
     # we cannot get an acceleration there (nor are we interested in it)
     # but it is eassier to loop around this way
