@@ -233,14 +233,16 @@ class splineOPConstrained(object):
         self.state_idx_sequence = state_idx_sequence
 
     def backtrack_specific(self, K):
+        # K+2 is the last index over the K-axis 
         assert K <= self.soc.shape[0]
         K = K+2 # Need to explain more the relation with the dimensions of the matrix
-        t = self.soc.shape[1] - 1
-        bkps = np.array([t], dtype=np.int64)
+        # Get the last time and last position
+        t = self.soc.shape[1] - 1 # last item's index
+        bkps = np.array([t], dtype=np.int64) 
         state_idx_sequence = np.array(
             [int(np.argmin(self.soc[K, -1]))], dtype=np.int64
         )
-
+        # Iterate over the previous changes to get the time and state
         for k in range(K - 1, 0, -1):  # 0 is not included
             previous_cp = np.array(
                 [self.time_path_mat[k, bkps[0], state_idx_sequence[0]]]
