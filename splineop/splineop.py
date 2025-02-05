@@ -620,7 +620,7 @@ def get_polynomial_knots_and_states(model):
     poly = interpolate.PPoly(coeff, knots)
     return poly
 
-def get_speeds_from_observations(y,pcts):
+def compute_from_observations(y,pcts):
     """
     y (np.array) 1-dimensional array with the observations. 
     pcts (list/1d-array) : % of the signal points to take into account
@@ -635,12 +635,12 @@ def get_speeds_from_observations(y,pcts):
         speeds = np.concat((speeds,speed))
     return speeds
 
-def noised_obs_to_speeds(y,pcts)-> np.array:
+def compute_speeds_from_multi_obs(y,pcts)-> np.array:
     """
     Wrapper around get_speeds to compute over the matrix of observations directly.T
 
     y (2d-np.array): N samples x T array of observations
     pcts (list/np.array): Percentages expressed as integers
     """
-    speeds = np.apply_along_axis(get_speeds_from_observations,1,y,pcts)
+    speeds = np.apply_along_axis(compute_from_observations,1,y,pcts)
     return speeds
