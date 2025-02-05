@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from splineop.costs import *
 import pdb
 from timeit import default_timer as timer 
+from sklearn.linear_model import LinearRegression
 
 
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
@@ -215,7 +216,7 @@ class splineOPConstrained(object):
         t = self.soc.shape[1] - 1
         bkps = np.array([t], dtype=np.int64)
         state_idx_sequence = np.array(
-            [int(np.argmin(self.soc[-1, -1]))], dtype=np.int64
+            [int(np.argmin(self.soc[K-1, -1]))], dtype=np.int64
         )
 
         for k in range(K - 1, 0, -1):  # 0 is not included
@@ -234,13 +235,15 @@ class splineOPConstrained(object):
 
     def backtrack_specific(self, K):
         # K+2 is the last index over the K-axis 
-        assert K <= self.soc.shape[0]
-        K = K+2 # Need to explain more the relation with the dimensions of the matrix
+        assert K <= self.soc.shape[0]-2
+        K = K+2 # I do +2 here, and -1 in the def of state_idx_seq below  
+                # so that the code is resembles more to the "normal" backtrack
+        
         # Get the last time and last position
         t = self.soc.shape[1] - 1 # last item's index
         bkps = np.array([t], dtype=np.int64) 
         state_idx_sequence = np.array(
-            [int(np.argmin(self.soc[K, -1]))], dtype=np.int64
+            [int(np.argmin(self.soc[K-1, -1]))], dtype=np.int64
         )
         # Iterate over the previous changes to get the time and state
         for k in range(K - 1, 0, -1):  # 0 is not included
@@ -616,3 +619,28 @@ def get_polynomial_knots_and_states(model):
     knots = knots[:]/n_points
     poly = interpolate.PPoly(coeff, knots)
     return poly
+
+def get_speeds_from_observations(y,pcts):
+    """
+    y (np.array) 1-dimensional array with the observations. 
+    pcts (list/1d-array) : % of the signal points to take into account
+    for the linear regression. Pctgs expressed as integers. 
+    """
+    pct_to_ints = np.round(len(y) * np.array(pcts)/100).astype(int)
+    speeds = np.array([])
+    for i in pct_to_ints:
+        lr = LinearRegression()
+        lr.fit(X=x[:i].reshape(-1,1),y=y[:i].reshape(-1,1))
+        speed = lr.coef_[0]
+        speeds = np.concat((speeds,speed))
+    return speeds
+
+def noised_obs_to_speeds(y,pcts)-> np.array:
+    """
+    Wrapper around get_speeds to compute over the matrix of observations directly.T
+
+    y (2d-np.array): N samples x T array of observations
+    pcts (list/np.array): Percentages expressed as integers
+    """
+    speeds = np.apply_along_axis(get_speeds_from_observations,1,y,pcts)
+    return speeds
