@@ -70,7 +70,7 @@ class costPenalized(object):
         """
         self.signal = signal
         self.states = states
-        self.n_states = states.shape[0]
+        self.n_states = states.shape[-1]
         self.initial_speeds = initial_speeds
         self.n_samples = self.signal.shape[0]
         self.normalized = normalized
@@ -214,8 +214,8 @@ class costPenalized(object):
                 new_seg_error, new_end_speed = self.error(
                     start=0,
                     end=end,
-                    p_start_val=self.states[p_start_idx],
-                    p_end_val=self.states[p_end_idx],
+                    p_start_val=self.states[0][p_start_idx],
+                    p_end_val=self.states[end][p_end_idx],
                     v_start_val=v_start_val,
                 )
                 if (
@@ -234,8 +234,8 @@ class costPenalized(object):
                     new_seg_error, new_end_speed = self.error(
                         start=mid,
                         end=end,
-                        p_start_val=self.states[p_start_idx],
-                        p_end_val=self.states[p_end_idx],
+                        p_start_val=self.states[mid][p_start_idx],
+                        p_end_val=self.states[end][p_end_idx],
                         v_start_val=speed_matrix[mid, p_start_idx],
                     )
                 if (
@@ -266,7 +266,7 @@ class costConstrained(object):
     """
 
     signal: float64[:]
-    states: float64[:]
+    states: float64[:, :]
     n_states: int
     initial_speeds: float64[:]
     normalized: bool
@@ -322,7 +322,7 @@ class costConstrained(object):
         """
         self.signal = signal
         self.states = states
-        self.n_states = states.shape[0]
+        self.n_states = states.shape[-1]
         self.initial_speeds = initial_speeds
         self.n_samples = self.signal.shape[0]
         self.normalized = normalized
@@ -465,11 +465,12 @@ class costConstrained(object):
         if k == 1:
             for p_start_idx in range(self.n_states):
                 for v_start_val in initial_speeds:
+                    #pdb.set_trace()
                     new_seg_error, new_end_speed = self.error(
                         start=0,
                         end=end,
-                        p_start_val=self.states[p_start_idx],
-                        p_end_val=self.states[p_end_idx],
+                        p_start_val=self.states[0][p_start_idx],
+                        p_end_val=self.states[end][p_end_idx],
                         v_start_val=v_start_val,
                     )
                     if (
@@ -492,8 +493,8 @@ class costConstrained(object):
                         new_seg_error, new_end_speed = self.error(
                             start=mid,
                             end=end,
-                            p_start_val=self.states[p_start_idx],
-                            p_end_val=self.states[p_end_idx],
+                            p_start_val=self.states[mid][p_start_idx],
+                            p_end_val=self.states[end][p_end_idx],
                             v_start_val= speed_matrix[mid, p_start_idx],
                         )
                     if (

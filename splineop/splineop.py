@@ -39,7 +39,7 @@ class splineOPPenalized(object):
         normalized: bool,
     ):
         self.n_points = signal.shape[0]
-        self.n_states = states.shape[0]
+        self.n_states = states.shape[-1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
@@ -123,7 +123,7 @@ splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
 class splineOPConstrained(object):
     n_points: int64
     n_states: int64
-    states: float64[:]
+    states: float64[:, :]
     initial_speeds: float64[:]
     bkps: int64[:]
     knots: int64[:]
@@ -146,7 +146,7 @@ class splineOPConstrained(object):
         normalized: bool,
     ):
         self.n_points = signal.shape[0]
-        self.n_states = states.shape[0]
+        self.n_states = states.shape[-1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
@@ -626,6 +626,7 @@ def compute_from_observations(y,pcts):
     pcts (list/1d-array) : % of the signal points to take into account
     for the linear regression. Pctgs expressed as integers. 
     """
+    x=np.linspace(0,1,len(y),False)
     pct_to_ints = np.round(len(y) * np.array(pcts)/100).astype(int)
     speeds = np.array([])
     for i in pct_to_ints:
