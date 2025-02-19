@@ -620,7 +620,7 @@ def get_polynomial_knots_and_states(model):
     poly = interpolate.PPoly(coeff, knots)
     return poly
 
-def compute_from_observations(y,pcts):
+def compute_from_observations(y,pcts=[0.5, 1, 1.5, 2, 2.5]):
     """
     y (np.array) 1-dimensional array with the observations. 
     pcts (list/1d-array) : % of the signal points to take into account
@@ -636,12 +636,41 @@ def compute_from_observations(y,pcts):
         speeds = np.concat((speeds,speed))
     return speeds
 
-def compute_speeds_from_multi_obs(y,pcts)-> np.array:
+def compute_speeds_from_multi_obs(y,pcts=[0.5, 1, 1.5, 2, 2.5])-> np.array:
     """
-    Wrapper around get_speeds to compute over the matrix of observations directly.T
+    Wrapper around get_speeds to compute over the matrix of observations directly.
 
     y (2d-np.array): N samples x T array of observations
     pcts (list/np.array): Percentages expressed as integers
     """
     speeds = np.apply_along_axis(compute_from_observations,1,y,pcts)
     return speeds
+
+def state_generator(yobs,n_states=21, pct=0.05):
+    """
+    Generates a grid of states around the observations. 
+
+    Parameters:
+    yobs (np.array) : Array of observations
+    n_states (int) : Number of states to fit.
+    pct (float) : Percentage of the value range to be taken to form the states-grid.
+    
+    Returns:
+    states (np.NDarray) : (n_obs+1, n_states)-shaped array with the states for each observation.
+    """
+    nsignals = len(yobs)
+    m = len(yobs)
+    output = np.zeros((m+1, n_states))
+    
+    # Compute the inverval around the points
+    max_signal = np.max(yobs)
+    min_signal = np.min(yobs)
+    interval = np.abs(max_signal - min_signal)
+    delta = interval * pct
+
+    for i in range(m):
+        start = yobs[i] - delta/2
+        end = yobs[i] + delta/2
+        output[i] = np.linspace(start,end, n_states, True)
+    output[-1] = output[-2]
+    return output
