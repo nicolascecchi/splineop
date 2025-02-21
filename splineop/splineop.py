@@ -620,7 +620,7 @@ def get_polynomial_knots_and_states(model):
     poly = interpolate.PPoly(coeff, knots)
     return poly
 
-def compute_from_observations(y,pcts=[0.5, 1, 1.5, 2, 2.5]):
+def compute_speeds_from_observations(y,pcts=[0.5, 1, 1.5, 2, 2.5]):
     """
     y (np.array) 1-dimensional array with the observations. 
     pcts (list/1d-array) : % of the signal points to take into account
