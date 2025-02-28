@@ -643,10 +643,10 @@ def compute_speeds_from_multi_obs(y,pcts=[0.5, 1, 1.5, 2, 2.5])-> np.array:
     y (2d-np.array): N samples x T array of observations
     pcts (list/np.array): Percentages expressed as integers
     """
-    speeds = np.apply_along_axis(compute_from_observations,1,y,pcts)
+    speeds = np.apply_along_axis(compute_speeds_from_observations,1,y,pcts)
     return speeds
 
-def state_generator(yobs,n_states=21, pct=0.05):
+def state_generator(yobs,n_states=21, pct=0.05, local=True):
     """
     Generates a grid of states around the observations. 
 
@@ -667,10 +667,14 @@ def state_generator(yobs,n_states=21, pct=0.05):
     min_signal = np.min(yobs)
     interval = np.abs(max_signal - min_signal)
     delta = interval * pct
-
-    for i in range(m):
-        start = yobs[i] - delta/2
-        end = yobs[i] + delta/2
-        output[i] = np.linspace(start,end, n_states, True)
-    output[-1] = output[-2]
+    if local:
+        for i in range(m):
+            start = yobs[i] - delta/2
+            end = yobs[i] + delta/2
+            output[i] = np.linspace(start,end, n_states, True)
+        output[-1] = output[-2]
+    else:
+        for i in range(m):
+            output[i] = np.linspace(min_signal,max_signal, n_states, True)
+        output[-1] = output[-2]
     return output
