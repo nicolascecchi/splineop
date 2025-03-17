@@ -1,7 +1,7 @@
 # SPOP: Time Series Compression With Quadratic Splines
 
 Spline Optimal Partitioning (SPOP) is an algorithm for estimating changes in the second derivative of quadratic splines (i.e. continuous and continuously differentiable piece-wise quadratic polynomials).
-![Example of quadratic spline fit to noisy signal with knots detected using SPOP.](example.jpeg)
+![Example of quadratic spline fit to noisy signal with knots detected using SPOP.](https://github.com/nicolascecchi/splineop/blob/master/example/example.jpeg)
 
 # Notes on usage
 
