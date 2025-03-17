@@ -6,6 +6,8 @@ Spline Optimal Partitioning (SPOP) is an algorithm for estimating changes in the
 
 Note that the cost functions and the algorithms are implemented using Numba. For this reason, when calling a method you shall **not use named arguments, and pass them positionally**. 
 
+For example, you should call `model.predict(13)` and **not** `model.predict(K=13)`. 
+
 Otherwise you will get ```TypeError: some keyword arguments unexpected```  
 
 
