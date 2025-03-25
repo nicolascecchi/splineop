@@ -7,14 +7,14 @@ from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
 import pdb
 
- 
-@njit 
+
+@njit
 def compute_cusum(r: np.ndarray) -> np.ndarray:
     """
-    Numba currently does not support passing the 'axis' parameter to 
+    Numba currently does not support passing the 'axis' parameter to
     aggregate functions. Therefore, here's a workaround.
 
-    Note that it asumes that we sum over each column. 
+    Note that it asumes that we sum over each column.
     This is hardcoded because is how we use the signal structure
     [time, dimension].
     The result is something like:
@@ -22,14 +22,15 @@ def compute_cusum(r: np.ndarray) -> np.ndarray:
     [(x_11+x_21), (x_12+x_22),..., (x_1d+x_2d)]
     ....
     [(x_11+...+xN1), (x_12+...+xN2),..., (x_1d+..+xNd)]
-    
-    For further details, see the discussion in: 
+
+    For further details, see the discussion in:
     https://github.com/numba/numba/issues/1269
     """
     cs = np.zeros(shape=r.shape)
     for dim in range(r.shape[1]):
-        cs[:,dim] = np.cumsum(r[:, dim])
+        cs[:, dim] = np.cumsum(r[:, dim])
     return cs
+
 
 @jitclass
 class costPenalized(object):
@@ -37,16 +38,16 @@ class costPenalized(object):
     Class that stores values to compute efficiently the cost of a given segment.
     """
 
-    signal: float64[:,:]
-    states: float64[:,:,:]
+    signal: float64[:, :]
+    states: float64[:, :, :]
     n_states: int
-    initial_speeds: float64[:,:]
+    initial_speeds: float64[:, :]
     normalized: bool
     n_samples: int
-    cumsum_y: float64[:,:]
-    cumsum_y_sq: float64[:,:]
-    cumsum_n_y: float64[:,:]
-    cumsum_n_sq_y: float64[:,:]
+    cumsum_y: float64[:, :]
+    cumsum_y_sq: float64[:, :]
+    cumsum_n_y: float64[:, :]
+    cumsum_n_sq_y: float64[:, :]
 
     def __init__(self):
         pass
@@ -92,24 +93,24 @@ class costPenalized(object):
         """
         Precomputes and caches in object attributes values to compute the cost.
         """
-        #pdb.set_trace()
+        # pdb.set_trace()
         self.signal = signal
         self.states = states
-        self.n_states = states.shape[1] # revisar
+        self.n_states = states.shape[1]  # revisar
         self.initial_speeds = initial_speeds
         self.n_samples = self.signal.shape[0]
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
-        
+
         # Crossed terms
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
 
-        int_times_signal = integers[:,None] * self.signal
+        int_times_signal = integers[:, None] * self.signal
         self.cumsum_n_y = compute_cusum(int_times_signal)
 
-        int_sq_times_signal = (integers**2)[:,None] * self.signal
+        int_sq_times_signal = (integers**2)[:, None] * self.signal
         self.cumsum_n_sq_y = compute_cusum(int_sq_times_signal)
 
     def Faulhaber(self, deg: int, n: int) -> int:
@@ -231,10 +232,10 @@ class costPenalized(object):
         # No break
         penalty = float(penalty)
         curr_optimal_cost_val = np.inf
-        curr_optimal_speed_val = np.ones((speed_matrix[0].shape[1]),float) * np.inf
+        curr_optimal_speed_val = np.ones((speed_matrix[0].shape[1]), float) * np.inf
         curr_optimal_start_state_idx = None
         curr_optimal_time = float(0)
-        curr_optimal_initial_speed = np.ones((speed_matrix[0].shape[1]),float) * np.inf
+        curr_optimal_initial_speed = np.ones((speed_matrix[0].shape[1]), float) * np.inf
         for p_start_idx in range(self.n_states):
             for v_start_val in initial_speeds:
                 new_seg_error, new_end_speed = self.error(
@@ -254,8 +255,10 @@ class costPenalized(object):
         # Cases with change point
         for p_start_idx in range(self.n_states):
             for mid in range(1, end):
-                if (end-mid) <= 2:
-                    new_seg_error, new_end_speed = np.inf, np.zeros((speed_matrix[0].shape[1]), float)
+                if (end - mid) <= 2:
+                    new_seg_error, new_end_speed = np.inf, np.zeros(
+                        (speed_matrix[0].shape[1]), float
+                    )
                 else:
                     new_seg_error, new_end_speed = self.error(
                         start=mid,
@@ -291,16 +294,16 @@ class costConstrained(object):
     Class that stores values to compute efficiently the cost of a given segment.
     """
 
-    signal: float64[:,:]
-    states: float64[:,:, :]
+    signal: float64[:, :]
+    states: float64[:, :, :]
     n_states: int
-    initial_speeds: float64[:,:]
+    initial_speeds: float64[:, :]
     normalized: bool
     n_samples: int
-    cumsum_y: float64[:,:]
-    cumsum_y_sq: float64[:,:]
-    cumsum_n_y: float64[:,:]
-    cumsum_n_sq_y: float64[:,:]
+    cumsum_y: float64[:, :]
+    cumsum_y_sq: float64[:, :]
+    cumsum_n_y: float64[:, :]
+    cumsum_n_sq_y: float64[:, :]
 
     def __init__(self):
         pass
@@ -359,10 +362,10 @@ class costConstrained(object):
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
 
-        int_times_signal = integers[:,None] * self.signal
+        int_times_signal = integers[:, None] * self.signal
         self.cumsum_n_y = compute_cusum(int_times_signal)
 
-        int_sq_times_signal = (integers**2)[:,None] * self.signal
+        int_sq_times_signal = (integers**2)[:, None] * self.signal
         self.cumsum_n_sq_y = compute_cusum(int_sq_times_signal)
 
     def Faulhaber(self, deg: int, n: int) -> int:
@@ -387,7 +390,7 @@ class costConstrained(object):
         end: int,
         p_start_val: float,
         p_end_val: float,
-        v_start_val: np.ndarray, # array! 
+        v_start_val: np.ndarray,  # array!
     ) -> tuple[float, np.ndarray]:
         """
         Computes the error on the interval [start, end) and the final speed of the associated polynomial.
@@ -462,9 +465,9 @@ class costConstrained(object):
         self,
         end: int,
         p_end_idx: int,
-        speed_matrix: np.ndarray,#[np.float64, np.float64, np.float64],
+        speed_matrix: np.ndarray,  # [np.float64, np.float64, np.float64],
         initial_speeds: np.ndarray,
-        soc: np.ndarray,#[np.float64, np.float64],
+        soc: np.ndarray,  # [np.float64, np.float64],
         k: int,
     ) -> tuple[float, float, float, float]:
         """
@@ -490,7 +493,7 @@ class costConstrained(object):
         if k == 1:
             for p_start_idx in range(self.n_states):
                 for v_start_val in initial_speeds:
-                    #pdb.set_trace()
+                    # pdb.set_trace()
                     new_seg_error, new_end_speed = self.error(
                         start=0,
                         end=end,
@@ -507,9 +510,9 @@ class costConstrained(object):
         # Cases with change point
         else:
             for p_start_idx in range(self.n_states):
-                    # (k-1)*N means that we count N points for each of the
-                    # previous segments.  Here we use N=1
-                for mid in range(k-1, end):
+                # (k-1)*N means that we count N points for each of the
+                # previous segments.  Here we use N=1
+                for mid in range(k - 1, end):
                     # Penalize segments shorter than k+1 with infinite cost
                     if (end - mid) < 3:
                         new_seg_error = np.inf
@@ -520,7 +523,7 @@ class costConstrained(object):
                             end=end,
                             p_start_val=self.states[mid][p_start_idx],
                             p_end_val=self.states[end][p_end_idx],
-                            v_start_val= speed_matrix[mid, p_start_idx],
+                            v_start_val=speed_matrix[mid, p_start_idx],
                         )
                     if (
                         soc[mid, p_start_idx] + new_seg_error
@@ -528,7 +531,7 @@ class costConstrained(object):
                         curr_optimal_cost_val = soc[mid, p_start_idx] + new_seg_error
                         curr_optimal_speed_val = new_end_speed
                         curr_optimal_start_state_idx = p_start_idx
-                        curr_optimal_time = mid                    
+                        curr_optimal_time = mid
         return (
             curr_optimal_cost_val,
             curr_optimal_start_state_idx,

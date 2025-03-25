@@ -7,14 +7,16 @@ from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
 from splineop.costs import *
 import pdb
-from timeit import default_timer as timer 
+from timeit import default_timer as timer
 from sklearn.linear_model import LinearRegression
 
 
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
+
+
 @jitclass(splineop_spec_Pen)
 class splineOPPenalized(object):
-    """ A class that allows to solve the splineOP poblem with penalization.
+    """A class that allows to solve the splineOP poblem with penalization.
 
     Methods:
     __init__
@@ -22,9 +24,10 @@ class splineOPPenalized(object):
     predict
     backtrack_solution
     """
+
     n_points: int64
     n_states: int64
-    states: float64[:,:,:]
+    states: float64[:, :, :]
     initial_speeds: float64[:, :]
     bkps: float64[:]
     knots: float64[:]
@@ -34,15 +37,15 @@ class splineOPPenalized(object):
     state_path_mat: int64[:, :]
     speed_path_mat: float64[:, :, :]
     execution_time: float64
-    t_start : float64
+    t_start: float64
     ndims: int64
 
     def __init__(self, cost_fn):
-        """ Constructor for the class.
-        
+        """Constructor for the class.
+
         Arguments:
         cost_fn (splineop.costs.costConstrained)
-    
+
         """
         self.cost = cost_fn
 
@@ -61,7 +64,7 @@ class splineOPPenalized(object):
         signal (numpy.ndarray): The input signal.
         states (numpy.ndarray): The states of the system.
         initial_speeds (numpy.ndarray): The initial speeds of the system.
-        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized.
         """
         self.n_points = signal.shape[0]
         self.n_states = states.shape[1]
@@ -70,7 +73,7 @@ class splineOPPenalized(object):
         self.cost.fit(signal, states, initial_speeds, normalized)
         self.ndims = signal.shape[1]
 
-    def predict(self, penalty:float)-> None:
+    def predict(self, penalty: float) -> None:
         """
         Computes the cost of solving the SplineOP problem with a given penalty.
 
@@ -78,7 +81,7 @@ class splineOPPenalized(object):
         penalty (float): The penalty term. Bigger penalties generate less change points.
         """
         # Case with change points
-        
+
         self.soc = np.empty(shape=(self.n_points + 1, self.n_states), dtype=np.float64)
         self.soc[0, :] = float(0)
         self.time_path_mat = np.empty(
@@ -90,7 +93,7 @@ class splineOPPenalized(object):
         self.speed_path_mat = np.empty(
             shape=(self.n_points + 1, self.n_states, self.ndims), dtype=np.float64
         )
-        with objmode(t_start='float64'):
+        with objmode(t_start="float64"):
             t_start = timer()
         for end in range(1, self.n_points + 1):
             for p_end_idx in range(self.n_states):
@@ -99,7 +102,7 @@ class splineOPPenalized(object):
                     self.speed_path_mat[end, p_end_idx],
                     self.state_path_mat[end, p_end_idx],
                     self.time_path_mat[end, p_end_idx],
-                    opt_start_speed, # Possibly need to check this.
+                    opt_start_speed,  # Possibly need to check this.
                 ) = self.cost.compute_optimal_cost(
                     end=end,
                     p_end_idx=p_end_idx,
@@ -114,11 +117,11 @@ class splineOPPenalized(object):
                     self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
                         opt_start_speed
                     )
-        with objmode(t_end='float64'):
+        with objmode(t_end="float64"):
             t_end = timer()
         self.execution_time = t_end - t_start
         return self.backtrack_solution()
-    
+
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
         """Finds the state and time sequence that optimizes the splineOP problem."""
         bkps = np.empty(shape=0, dtype=np.float64)
@@ -152,9 +155,11 @@ class splineOPPenalized(object):
 
 
 splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
+
+
 @jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
-    """ A class that allows to solve the splineOP problem with a fixed number of breaks.
+    """A class that allows to solve the splineOP problem with a fixed number of breaks.
 
     Methods:
     __init__
@@ -163,27 +168,28 @@ class splineOPConstrained(object):
     backtrack_solution
     backtrack_specific
     """
+
     n_points: int64
     n_states: int64
     states: float64[:, :, :]
-    initial_speeds: float64[:,:]
+    initial_speeds: float64[:, :]
     bkps: int64[:]
     knots: int64[:]
     state_idx_sequence: int64[:]
     time_path_mat: int64[:, :, :]
-    soc: float64[:, :,:]
+    soc: float64[:, :, :]
     state_path_mat: int64[:, :, :]
     speed_path_mat: float64[:, :, :, :]
     execution_time: float64
-    execution_time_k : float64[:]
-    ndims : int64
+    execution_time_k: float64[:]
+    ndims: int64
 
     def __init__(self, cost_fn):
-        """ Constructor for the class.
-        
+        """Constructor for the class.
+
         Arguments:
         cost_fn (splineop.costs.costConstrained)
-    
+
         """
         self.cost = cost_fn
 
@@ -202,7 +208,7 @@ class splineOPConstrained(object):
         signal (numpy.ndarray): The input signal.
         states (numpy.ndarray): The states of the system.
         initial_speeds (numpy.ndarray): The initial speeds of the system.
-        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized.
         """
         self.n_points = signal.shape[0]
         self.n_states = states.shape[1]
@@ -217,12 +223,12 @@ class splineOPConstrained(object):
 
         Arguments:
         K (int): Number of changepoints desired by the user, implying K+1 segments.
-        
+
         Internally we think the procedure in terms of nb of segments
         therefore we need dimension K+2 because we index 0 as a dummy
         and then have indexes 1 through K+1, representing the segments
         Since Python is index-0, we use dimension K+2
-        That is: Over axis of K, 0 is dummy, 1 is 1 segments (no change), 
+        That is: Over axis of K, 0 is dummy, 1 is 1 segments (no change),
         2 is 2 segments (1 change),...,K+1 is K+1 segments (K changes)
 
         The fist dimension of SOC is used as a dummy with all 0s
@@ -231,12 +237,12 @@ class splineOPConstrained(object):
         """
         self.soc = np.ones(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
-                    )
+        )
         self.soc = self.soc * np.inf
-        self.soc[0] = float(0.)  # Dummy
-        self.soc[1] = np.inf # Puts infinite weight to segments w/o change 
-                             # to avoid having sthing like [0..2][3...T] 
-                             # Avoiding a very short first segment for sure. 
+        self.soc[0] = float(0.0)  # Dummy
+        self.soc[1] = np.inf  # Puts infinite weight to segments w/o change
+        # to avoid having sthing like [0..2][3...T]
+        # Avoiding a very short first segment for sure.
         self.time_path_mat = np.empty(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
@@ -244,15 +250,16 @@ class splineOPConstrained(object):
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
         self.speed_path_mat = np.empty(
-            shape=(K + 2, self.n_points + 1, self.n_states, self.ndims), dtype=np.float64
+            shape=(K + 2, self.n_points + 1, self.n_states, self.ndims),
+            dtype=np.float64,
         )
-        self.execution_time_k= np.zeros(shape=(K+2), dtype=np.float64)
-        
-        for k in range(1, K + 2): # nb of segments
-            with objmode(t_start_k='float64'):
+        self.execution_time_k = np.zeros(shape=(K + 2), dtype=np.float64)
+
+        for k in range(1, K + 2):  # nb of segments
+            with objmode(t_start_k="float64"):
                 t_start_k = timer()
-            for end in range(k, self.n_points + 1): # nb of points seen
-                for p_end_idx in range(self.n_states): # each state
+            for end in range(k, self.n_points + 1):  # nb of points seen
+                for p_end_idx in range(self.n_states):  # each state
                     (
                         self.soc[k, end, p_end_idx],
                         self.state_path_mat[k, end, p_end_idx],
@@ -266,7 +273,7 @@ class splineOPConstrained(object):
                         soc=self.soc[k - 1],
                         k=k,
                     )
-            with objmode(t_end_k='float64'):
+            with objmode(t_end_k="float64"):
                 # Escape Numba one moment to register the time taken
                 t_end_k = timer()
             self.execution_time_k[k] = t_end_k - t_start_k
@@ -275,12 +282,12 @@ class splineOPConstrained(object):
 
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
         """Finds the sequence of optimal time changes and their states, for the default K."""
-        
+
         K = self.soc.shape[0]
         t = self.soc.shape[1] - 1
         bkps = np.array([t], dtype=np.int64)
         state_idx_sequence = np.array(
-            [int(np.argmin(self.soc[K-1, -1]))], dtype=np.int64
+            [int(np.argmin(self.soc[K - 1, -1]))], dtype=np.int64
         )
 
         for k in range(K - 1, 0, -1):  # 0 is not included
@@ -300,21 +307,21 @@ class splineOPConstrained(object):
     def backtrack_specific(self, K):
         """
         Finds the sequence of optimal time changes and states, for a given K < original K.
-        
+
         Since for computing the original K we need to fill the matrices for all K,
         we can trace the solutions of lower number of segments from the same execution.
         """
 
-        # K+2 is the last index over the K-axis 
-        assert K <= self.soc.shape[0]-2
-        K = K+2 # I do +2 here, and -1 in the def of state_idx_seq below  
-                # so that the code is resembles more to the "normal" backtrack
-        
+        # K+2 is the last index over the K-axis
+        assert K <= self.soc.shape[0] - 2
+        K = K + 2  # I do +2 here, and -1 in the def of state_idx_seq below
+        # so that the code is resembles more to the "normal" backtrack
+
         # Get the last time and last position
-        t = self.soc.shape[1] - 1 # last item's index
-        bkps = np.array([t], dtype=np.int64) 
+        t = self.soc.shape[1] - 1  # last item's index
+        bkps = np.array([t], dtype=np.int64)
         state_idx_sequence = np.array(
-            [int(np.argmin(self.soc[K-1, -1]))], dtype=np.int64
+            [int(np.argmin(self.soc[K - 1, -1]))], dtype=np.int64
         )
         # Iterate over the previous changes to get the time and state
         for k in range(K - 1, 0, -1):  # 0 is not included
@@ -391,24 +398,26 @@ def plot_pw_results(
     plt.show()
 
 
-def get_polynomial_from_penalized_model(model,y, method='scipy', s=None) -> interpolate.PPoly:
+def get_polynomial_from_penalized_model(
+    model, y, method="scipy", s=None
+) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
-    if method=='scipy':
-        x = np.linspace(0,1,model.n_points,endpoint=False)
+    if method == "scipy":
+        x = np.linspace(0, 1, model.n_points, endpoint=False)
         values = model.states[model.state_idx_sequence]
         bkps = model.bkps
         if len(bkps) > 0:
             if bkps[0] < 3:
                 bkps[0] = 3
-            if bkps[-1] > model.n_points-3:
-                bkps[-1] = model.n_points-3
+            if bkps[-1] > model.n_points - 3:
+                bkps[-1] = model.n_points - 3
         if s == None:
-            s = 0.1 # default value
-        t = np.hstack(tup=(np.array([0,0,0]), bkps/model.n_points))
-        t = np.hstack((t, np.array([1,1,1])))
-        tck = interpolate.make_splrep(x,y,xb=x.min(),xe=x.max(),k=2,t=t, s=s)
+            s = 0.1  # default value
+        t = np.hstack(tup=(np.array([0, 0, 0]), bkps / model.n_points))
+        t = np.hstack((t, np.array([1, 1, 1])))
+        tck = interpolate.make_splrep(x, y, xb=x.min(), xe=x.max(), k=2, t=t, s=s)
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
@@ -460,22 +469,29 @@ def get_polynomial_from_penalized_model(model,y, method='scipy', s=None) -> inte
     return polynomial
 
 
-def get_polynomial_from_constrained_model(model, y, method='scipy') -> interpolate.PPoly:
+def get_polynomial_from_constrained_model(
+    model, y, method="scipy"
+) -> interpolate.PPoly:
     """
     Reconstruct the approximating polynomial.
     """
-    if method=='scipy':
-        x = np.linspace(0,1,model.n_points,endpoint=False)
+    if method == "scipy":
+        x = np.linspace(0, 1, model.n_points, endpoint=False)
         values = model.states[model.state_idx_sequence]
         bkps = model.bkps
         if len(bkps) > 0:
             if bkps[0] < 3:
                 bkps[0] = 3
-            if bkps[-1] > model.n_points-3:
-                bkps[-1] = model.n_points-3
-        t = np.hstack((np.array([0,0,0]), bkps/model.n_points))
-        t = np.hstack((t, np.array([1,1,1])))
-        tck = interpolate.make_lsq_spline(x,y,t=t,k=2,)
+            if bkps[-1] > model.n_points - 3:
+                bkps[-1] = model.n_points - 3
+        t = np.hstack((np.array([0, 0, 0]), bkps / model.n_points))
+        t = np.hstack((t, np.array([1, 1, 1])))
+        tck = interpolate.make_lsq_spline(
+            x,
+            y,
+            t=t,
+            k=2,
+        )
         polynomial = interpolate.PPoly.from_spline(tck)
 
     else:
@@ -497,7 +513,7 @@ def get_polynomial_from_constrained_model(model, y, method='scipy') -> interpola
         for bkp_idx in range(1, L):
             # Get the end speed for this segment
             segment_start_speed = model.speed_path_mat[
-                bkp_idx, intbkps[bkp_idx-1], model.state_idx_sequence[bkp_idx]
+                bkp_idx, intbkps[bkp_idx - 1], model.state_idx_sequence[bkp_idx]
             ]
             speed = np.append(
                 arr=speed,
@@ -621,10 +637,10 @@ def generate_pw_quadratic(
     coefficients[1, 0] = np.random.uniform(-5, 5)
     coefficients[2, 0] = np.random.uniform(-5, 5)
     poly = interpolate.PPoly(c=coefficients, x=x_breaks)
-    
+
     a_i = coefficients[0, 0]
     for i in range(1, n_poly):
-        # Previous segment endpoint    
+        # Previous segment endpoint
         x_curr = x_breaks[i]
 
         # Set the constant term for continuity
@@ -638,10 +654,8 @@ def generate_pw_quadratic(
         # sample with minimum jump size
         if delta:
             if strategy == "equal":
-                jump_i = (
-                    delta * np.random.choice(a=[-1, 1], size=[1], replace=True)[0]
-                )
-                
+                jump_i = delta * np.random.choice(a=[-1, 1], size=[1], replace=True)[0]
+
             elif strategy == "geq":
                 jump_i = np.random.uniform(low=-3 * delta, high=3 * delta)
                 while np.abs(jump_i) < delta:
@@ -659,80 +673,90 @@ def generate_pw_quadratic(
     final_poly = interpolate.PPoly(c=coefficients, x=x_breaks)
     return final_poly
 
+
 def get_polynomial_knots_and_states(model):
-     
-    knots = model.knots # includes 0 and n_points
-    state_sequence = model.states[model.state_idx_sequence] # includes first and last
+
+    knots = model.knots  # includes 0 and n_points
+    state_sequence = model.states[model.state_idx_sequence]  # includes first and last
     n_points = model.n_points
-    speeds = model.initial_speeds # for the moment it's only 1 speed, may need to refactor later
+    speeds = (
+        model.initial_speeds
+    )  # for the moment it's only 1 speed, may need to refactor later
 
-    coeff = np.empty((3,len(knots)-1)) # we don't need coeffs for the segment after the last knot
-    coeff[2,:] = state_sequence[:-1]
-    coeff[1,0] = speeds[0]
+    coeff = np.empty(
+        (3, len(knots) - 1)
+    )  # we don't need coeffs for the segment after the last knot
+    coeff[2, :] = state_sequence[:-1]
+    coeff[1, 0] = speeds[0]
 
-    dknots = np.diff(knots/n_points)
+    dknots = np.diff(knots / n_points)
     p_i = state_sequence[0]
     dp = np.diff(state_sequence)
     v_i = speeds[0]
 
-    for i in range(len(dknots)-1):        
-        a_i =  (dp[i])/(dknots[i])**2 - v_i / dknots[i]
-        coeff[0,i] = a_i
+    for i in range(len(dknots) - 1):
+        a_i = (dp[i]) / (dknots[i]) ** 2 - v_i / dknots[i]
+        coeff[0, i] = a_i
         # Exits
         v_i = v_i + 2 * a_i * dknots[i]
-        coeff[1,i+1] = v_i
-        p_i = state_sequence[i+1]
-    coeff[0,len(dknots)-1] = (dp[len(dknots)-1])/(dknots[len(dknots)-1])**2 - v_i / dknots[len(dknots)-1]
+        coeff[1, i + 1] = v_i
+        p_i = state_sequence[i + 1]
+    coeff[0, len(dknots) - 1] = (dp[len(dknots) - 1]) / (
+        dknots[len(dknots) - 1]
+    ) ** 2 - v_i / dknots[len(dknots) - 1]
     # Coeff[1/2, last] has the final point and exit speed, but
     # we cannot get an acceleration there (nor are we interested in it)
     # but it is eassier to loop around this way
-    coeff = coeff[:,:]
-    knots = knots[:]/n_points
+    coeff = coeff[:, :]
+    knots = knots[:] / n_points
     poly = interpolate.PPoly(coeff, knots)
     return poly
 
-def compute_speeds_from_observations(y,pcts=[0.5, 1, 1.5, 2, 2.5]):
+
+def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     """
-    y (np.array) 1-dimensional array with the observations. 
+    y (np.array) 1-dimensional array with the observations.
     pcts (list/1d-array) : % of the signal points to take into account
-    for the linear regression. Pctgs expressed as integers. 
+    for the linear regression. Pctgs expressed as integers.
     """
-    x=np.linspace(0,1,len(y),False)
-    pct_to_ints = np.round(len(y) * np.array(pcts)/100).astype(int)
+    x = np.linspace(0, 1, len(y), False)
+    pct_to_ints = np.round(len(y) * np.array(pcts) / 100).astype(int)
     speeds = np.array([])
     for i in pct_to_ints:
         lr = LinearRegression()
-        lr.fit(X=x[:i].reshape(-1,1),y=y[:i].reshape(-1,1))
+        lr.fit(X=x[:i].reshape(-1, 1), y=y[:i].reshape(-1, 1))
         speed = lr.coef_[0]
-        speeds = np.concat((speeds,speed))
+        speeds = np.concat((speeds, speed))
     return speeds
 
-def compute_speeds_from_multi_obs(y,pcts=[0.5, 1, 1.5, 2, 2.5])-> np.array:
+
+def compute_speeds_from_multi_obs(y, pcts=[0.5, 1, 1.5, 2, 2.5]) -> np.array:
     """
     Wrapper around get_speeds to compute over the matrix of observations directly.
 
     y (2d-np.array): N samples x T array of observations
     pcts (list/np.array): Percentages expressed as integers
     """
-    speeds = np.apply_along_axis(compute_speeds_from_observations,1,y,pcts)
+    speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, pcts)
     return speeds
 
-def state_generator(signal,n_states=5, pct=0.05, local=True):
+
+def state_generator(signal, n_states=5, pct=0.05, local=True):
     """
-    Generates a grid of states around the observations. 
+    Generates a grid of states around the observations.
 
     Parameters:
     signal (np.array) : Array of observations
     n_states (int) : Number of states to fit.
     pct (float) : Percentage of the value range to be taken to form the states-grid.
-    
+
     Returns:
     states (np.NDarray) : (n_obs+1, n_states)-shaped array with the states for each observation.
     """
-    if signal.shape[0]== 1:
+    if signal.shape[0] == 1:
         m = len(signal)
-        states = np.zeros((m+1, n_states))
-        
+        states = np.zeros((m + 1, n_states))
+
         # Compute the inverval around the points
         max_signal = np.max(signal)
         min_signal = np.min(signal)
@@ -740,26 +764,26 @@ def state_generator(signal,n_states=5, pct=0.05, local=True):
         delta = interval * pct
         if local:
             for i in range(m):
-                start = signal[i] - delta/2
-                end = signal[i] + delta/2
-                states[i] = np.linspace(start,end, n_states, True)
+                start = signal[i] - delta / 2
+                end = signal[i] + delta / 2
+                states[i] = np.linspace(start, end, n_states, True)
             states[-1] = states[-2]
         else:
             for i in range(m):
-                states[i] = np.linspace(min_signal,max_signal, n_states, True)
+                states[i] = np.linspace(min_signal, max_signal, n_states, True)
             states[-1] = states[-2]
         return states
     else:
         each_side = (n_states - 1) // 2
 
         signal_length, signal_dims = signal.shape
-        states_shape = (signal_length+1, n_states, signal_dims)
+        states_shape = (signal_length + 1, n_states, signal_dims)
         states = np.zeros(shape=states_shape)
         for i in range(each_side, signal_length - each_side - 1):
-            
-            states[i] = signal[i-each_side:i+each_side + 1]
-        for i in range(0,each_side):
+
+            states[i] = signal[i - each_side : i + each_side + 1]
+        for i in range(0, each_side):
             states[i] = signal[0:n_states]
-            states[signal_length - (each_side+1)  + i] = signal[-n_states:]
+            states[signal_length - (each_side + 1) + i] = signal[-n_states:]
         states[-1] = signal[-n_states:]
         return states
