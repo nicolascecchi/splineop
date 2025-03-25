@@ -38,7 +38,7 @@ class costPenalized(object):
     """
 
     signal: float64[:,:]
-    states: float64[:,:]
+    states: float64[:,:,:]
     n_states: int
     initial_speeds: float64[:,:]
     normalized: bool
@@ -92,23 +92,24 @@ class costPenalized(object):
         """
         Precomputes and caches in object attributes values to compute the cost.
         """
+        #pdb.set_trace()
         self.signal = signal
         self.states = states
-        self.n_states = states.shape[-1]
+        self.n_states = states.shape[1] # revisar
         self.initial_speeds = initial_speeds
         self.n_samples = self.signal.shape[0]
         self.normalized = normalized
-        self.cumsum_y = np.cumsum(self.signal)
-        self.cumsum_y_sq = np.cumsum(self.signal**2)
-
+        self.cumsum_y = compute_cusum(self.signal)
+        self.cumsum_y_sq = compute_cusum(self.signal**2)
+        
         # Crossed terms
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
 
-        int_times_signal = integers * self.signal
+        int_times_signal = integers[:,None] * self.signal
         self.cumsum_n_y = compute_cusum(int_times_signal)
 
-        int_sq_times_signal = integers**2 * self.signal
+        int_sq_times_signal = (integers**2)[:,None] * self.signal
         self.cumsum_n_sq_y = compute_cusum(int_sq_times_signal)
 
     def Faulhaber(self, deg: int, n: int) -> int:
@@ -178,7 +179,7 @@ class costPenalized(object):
             FaulhaberNormalizer = 1 / (self.n_samples)
         else:
             FaulhaberNormalizer = 1
-        cost_val = (
+        cost_val = np.sum(
             a**2
             * self.Faulhaber(deg=4, n=samples_in_range - 1)
             * FaulhaberNormalizer**4
@@ -228,11 +229,12 @@ class costPenalized(object):
         optimal previous speed
         """
         # No break
+        penalty = float(penalty)
         curr_optimal_cost_val = np.inf
-        curr_optimal_speed_val = np.ones((speed_matrix[0].shape),float) * np.inf
+        curr_optimal_speed_val = np.ones((speed_matrix[0].shape[1]),float) * np.inf
         curr_optimal_start_state_idx = None
         curr_optimal_time = float(0)
-        curr_optimal_initial_speed = np.ones((speed_matrix[0].shape),float) * np.inf
+        curr_optimal_initial_speed = np.ones((speed_matrix[0].shape[1]),float) * np.inf
         for p_start_idx in range(self.n_states):
             for v_start_val in initial_speeds:
                 new_seg_error, new_end_speed = self.error(
@@ -253,7 +255,7 @@ class costPenalized(object):
         for p_start_idx in range(self.n_states):
             for mid in range(1, end):
                 if (end-mid) <= 2:
-                    new_seg_error, new_end_speed = np.inf, 0
+                    new_seg_error, new_end_speed = np.inf, np.zeros((speed_matrix[0].shape[1]), float)
                 else:
                     new_seg_error, new_end_speed = self.error(
                         start=mid,

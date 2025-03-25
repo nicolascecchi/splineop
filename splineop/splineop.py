@@ -24,7 +24,7 @@ class splineOPPenalized(object):
     """
     n_points: int64
     n_states: int64
-    states: float64[:]
+    states: float64[:,:,:]
     initial_speeds: float64[:, :]
     bkps: float64[:]
     knots: float64[:]
@@ -35,6 +35,7 @@ class splineOPPenalized(object):
     speed_path_mat: float64[:, :, :]
     execution_time: float64
     t_start : float64
+    ndims: int64
 
     def __init__(self, cost_fn):
         """ Constructor for the class.
@@ -63,13 +64,13 @@ class splineOPPenalized(object):
         normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
         """
         self.n_points = signal.shape[0]
-        self.n_states = states.shape[-1]
+        self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
         self.ndims = signal.shape[1]
 
-    def predict(self, penalty:float=0)-> None:
+    def predict(self, penalty:float)-> None:
         """
         Computes the cost of solving the SplineOP problem with a given penalty.
 
@@ -111,7 +112,7 @@ class splineOPPenalized(object):
                 # Proabbly should just remove this to avoid the IF evaluation T*N times ¯\(o.o)/¯
                 if self.time_path_mat[end, p_end_idx] == 0:
                     self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
-                        np.float64(opt_start_speed)
+                        opt_start_speed
                     )
         with objmode(t_end='float64'):
             t_end = timer()
@@ -119,7 +120,7 @@ class splineOPPenalized(object):
         return self.backtrack_solution()
     
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
-        """Finds the state and time sequence that optimize the splineOP problem."""
+        """Finds the state and time sequence that optimizes the splineOP problem."""
         bkps = np.empty(shape=0, dtype=np.float64)
         state_idx_sequence = np.array([int(np.argmin(self.soc[-1]))], dtype=np.int64)
         t = self.soc.shape[0] - 1
