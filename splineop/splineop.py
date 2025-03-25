@@ -78,7 +78,7 @@ class splineOPPenalized(object):
         # Case with change points
         
         self.soc = np.empty(shape=(self.n_points + 1, self.n_states), dtype=np.float64)
-        self.soc[0, :] = 0
+        self.soc[0, :] = float(0)
         self.time_path_mat = np.empty(
             shape=(self.n_points + 1, self.n_states), dtype=np.int64
         )
@@ -121,21 +121,39 @@ class splineOPPenalized(object):
 splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
 @jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
+    """ A class that allows to solve the splineOP problem with a fixed number of breaks.
+
+ 
+    Methods:
+    __init__
+    fit
+    predict
+    backtrack_solution
+    backtrack_specific
+
+    """
     n_points: int64
     n_states: int64
-    states: float64[:, :]
-    initial_speeds: float64[:]
+    states: float64[:, :, :]
+    initial_speeds: float64[:,:]
     bkps: int64[:]
     knots: int64[:]
     state_idx_sequence: int64[:]
     time_path_mat: int64[:, :, :]
-    soc: float64[:, :, :]
+    soc: float64[:, :,:]
     state_path_mat: int64[:, :, :]
-    speed_path_mat: float64[:, :, :]
+    speed_path_mat: float64[:, :, :, :]
     execution_time: float64
     execution_time_k : float64[:]
+    ndims : int64
 
     def __init__(self, cost_fn):
+        """ Constructor for the class.
+        
+        Arguments:
+        cost_fn (splineop.costs.costConstrained)
+    
+        """
         self.cost = cost_fn
 
     def fit(
@@ -145,34 +163,46 @@ class splineOPConstrained(object):
         initial_speeds: np.ndarray,
         normalized: bool,
     ):
+        """
+        Stores the attributes  and computes the sums needed
+        for solving each error in O(1).
+
+        Arguments:
+        signal (numpy.ndarray): The input signal.
+        states (numpy.ndarray): The states of the system.
+        initial_speeds (numpy.ndarray): The initial speeds of the system.
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        """
         self.n_points = signal.shape[0]
-        self.n_states = states.shape[-1]
+        self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
+        self.ndims = signal.shape[1]
 
     def predict(self, K):
         """
         Compute the optimal partition for K change-points.
 
-        args
-        K (int) Number of changepoints desired by the user, implying K+1 segments.
-        """
-        # Internally we think the procedure in terms of nb of segments
-        # therefore we need dimension K+2 because we index 0 as a dummy
-        # and then have indexes 1 through K+1, representing the segments
-        # Since Python is index-0, we use dimension K+2
-        # That is: Over axis of K, 0 is dummy, 1 is 1 segments (no change), 
-        # 2 is 2 segments (1 change),...,K+1 is K+1 segments (K changes)
+        Arguments:
+        K (int): Number of changepoints desired by the user, implying K+1 segments.
+        
+        Internally we think the procedure in terms of nb of segments
+        therefore we need dimension K+2 because we index 0 as a dummy
+        and then have indexes 1 through K+1, representing the segments
+        Since Python is index-0, we use dimension K+2
+        That is: Over axis of K, 0 is dummy, 1 is 1 segments (no change), 
+        2 is 2 segments (1 change),...,K+1 is K+1 segments (K changes)
 
-        # The fist dimension of SOC is used as a dummy with all 0s
-        # The first dimensions of the others is a dummy never used
-        # but helps in terms of clarity with the indexing.
+        The fist dimension of SOC is used as a dummy with all 0s
+        The first dimensions of the others is a dummy never used
+        but helps in terms of clarity with the indexing.
+        """
         self.soc = np.ones(
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
                     )
         self.soc = self.soc * np.inf
-        self.soc[0] = 0  # Dummy
+        self.soc[0] = float(0.)  # Dummy
         self.soc[1] = np.inf # Puts infinite weight to segments w/o change 
                              # to avoid having sthing like [0..2][3...T] 
                              # Avoiding a very short first segment for sure. 
@@ -183,7 +213,7 @@ class splineOPConstrained(object):
             shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.int64
         )
         self.speed_path_mat = np.empty(
-            shape=(K + 2, self.n_points + 1, self.n_states), dtype=np.float64
+            shape=(K + 2, self.n_points + 1, self.n_states, self.ndims), dtype=np.float64
         )
         self.execution_time_k= np.zeros(shape=(K+2), dtype=np.float64)
         
@@ -191,6 +221,7 @@ class splineOPConstrained(object):
             with objmode(t_start_k='float64'):
                 t_start_k = timer()
             for end in range(k, self.n_points + 1): # nb of points seen
+                #pdb.set_trace()
                 for p_end_idx in range(self.n_states): # each state
                     (
                         self.soc[k, end, p_end_idx],
@@ -206,12 +237,15 @@ class splineOPConstrained(object):
                         k=k,
                     )
             with objmode(t_end_k='float64'):
+                # Escape Numba one moment to register the time taken
                 t_end_k = timer()
             self.execution_time_k[k] = t_end_k - t_start_k
         self.execution_time = np.sum(self.execution_time_k)
         self.backtrack_solution()
 
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
+        """Finds the sequence of optimal time changes and their states, for the default K."""
+        
         K = self.soc.shape[0]
         t = self.soc.shape[1] - 1
         bkps = np.array([t], dtype=np.int64)
@@ -234,6 +268,13 @@ class splineOPConstrained(object):
         self.state_idx_sequence = state_idx_sequence
 
     def backtrack_specific(self, K):
+        """
+        Finds the sequence of optimal time changes and states, for a given K < original K.
+        
+        Since for computing the original K we need to fill the matrices for all K,
+        we can trace the solutions of lower number of segments from the same execution.
+        """
+
         # K+2 is the last index over the K-axis 
         assert K <= self.soc.shape[0]-2
         K = K+2 # I do +2 here, and -1 in the def of state_idx_seq below  
@@ -682,9 +723,8 @@ def state_generator(signal,n_states=5, pct=0.05, local=True):
         each_side = (n_states - 1) // 2
 
         signal_length, signal_dims = signal.shape
-        states_shape = (signal_length, n_states, signal_dims)
+        states_shape = (signal_length+1, n_states, signal_dims)
         states = np.zeros(shape=states_shape)
-        print( signal_length - each_side - 1)
         for i in range(each_side, signal_length - each_side - 1):
             
             states[i] = signal[i-each_side:i+each_side + 1]
