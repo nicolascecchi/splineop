@@ -14,21 +14,35 @@ from sklearn.linear_model import LinearRegression
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
 @jitclass(splineop_spec_Pen)
 class splineOPPenalized(object):
+    """ A class that allows to solve the splineOP poblem with penalization.
+
+    Methods:
+    __init__
+    fit
+    predict
+    backtrack_solution
+    """
     n_points: int64
     n_states: int64
     states: float64[:]
-    initial_speeds: float64[:]
+    initial_speeds: float64[:, :]
     bkps: float64[:]
     knots: float64[:]
     state_idx_sequence: int64[:]
     time_path_mat: int64[:, :]
     soc: float64[:, :]
     state_path_mat: int64[:, :]
-    speed_path_mat: float64[:, :]
+    speed_path_mat: float64[:, :, :]
     execution_time: float64
     t_start : float64
 
     def __init__(self, cost_fn):
+        """ Constructor for the class.
+        
+        Arguments:
+        cost_fn (splineop.costs.costConstrained)
+    
+        """
         self.cost = cost_fn
 
     def fit(
@@ -38,13 +52,74 @@ class splineOPPenalized(object):
         initial_speeds: np.ndarray,
         normalized: bool,
     ):
+        """
+        Stores the attributes  and computes the sums needed
+        for solving each error in O(1).
+
+        Arguments:
+        signal (numpy.ndarray): The input signal.
+        states (numpy.ndarray): The states of the system.
+        initial_speeds (numpy.ndarray): The initial speeds of the system.
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        """
         self.n_points = signal.shape[0]
         self.n_states = states.shape[-1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         self.cost.fit(signal, states, initial_speeds, normalized)
+        self.ndims = signal.shape[1]
 
+    def predict(self, penalty:float=0)-> None:
+        """
+        Computes the cost of solving the SplineOP problem with a given penalty.
+
+        Arguments
+        penalty (float): The penalty term. Bigger penalties generate less change points.
+        """
+        # Case with change points
+        
+        self.soc = np.empty(shape=(self.n_points + 1, self.n_states), dtype=np.float64)
+        self.soc[0, :] = float(0)
+        self.time_path_mat = np.empty(
+            shape=(self.n_points + 1, self.n_states), dtype=np.int64
+        )
+        self.state_path_mat = np.empty(
+            shape=(self.n_points + 1, self.n_states), dtype=np.int64
+        )
+        self.speed_path_mat = np.empty(
+            shape=(self.n_points + 1, self.n_states, self.ndims), dtype=np.float64
+        )
+        with objmode(t_start='float64'):
+            t_start = timer()
+        for end in range(1, self.n_points + 1):
+            for p_end_idx in range(self.n_states):
+                (
+                    self.soc[end, p_end_idx],
+                    self.speed_path_mat[end, p_end_idx],
+                    self.state_path_mat[end, p_end_idx],
+                    self.time_path_mat[end, p_end_idx],
+                    opt_start_speed, # Possibly need to check this.
+                ) = self.cost.compute_optimal_cost(
+                    end=end,
+                    p_end_idx=p_end_idx,
+                    speed_matrix=self.speed_path_mat,
+                    initial_speeds=self.initial_speeds,
+                    soc=self.soc,
+                    penalty=penalty,
+                )
+                # Save the optimal starting speed to avoid future calculations
+                # Proabbly should just remove this to avoid the IF evaluation T*N times ¯\(o.o)/¯
+                if self.time_path_mat[end, p_end_idx] == 0:
+                    self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
+                        np.float64(opt_start_speed)
+                    )
+        with objmode(t_end='float64'):
+            t_end = timer()
+        self.execution_time = t_end - t_start
+        return self.backtrack_solution()
+    
     def backtrack_solution(self) -> tuple[np.ndarray, np.ndarray]:
+        """Finds the state and time sequence that optimize the splineOP problem."""
         bkps = np.empty(shape=0, dtype=np.float64)
         state_idx_sequence = np.array([int(np.argmin(self.soc[-1]))], dtype=np.int64)
         t = self.soc.shape[0] - 1
@@ -74,63 +149,18 @@ class splineOPPenalized(object):
         #    self.bkps = self.bkps / self.n_points
         #    real_bkps = real_bkps / self.n_points
 
-    def predict(self, penalty=0):
-        # Case with change points
-        
-        self.soc = np.empty(shape=(self.n_points + 1, self.n_states), dtype=np.float64)
-        self.soc[0, :] = float(0)
-        self.time_path_mat = np.empty(
-            shape=(self.n_points + 1, self.n_states), dtype=np.int64
-        )
-        self.state_path_mat = np.empty(
-            shape=(self.n_points + 1, self.n_states), dtype=np.int64
-        )
-        self.speed_path_mat = np.empty(
-            shape=(self.n_points + 1, self.n_states), dtype=np.float64
-        )
-        with objmode(t_start='float64'):
-            t_start = timer()
-        for end in range(1, self.n_points + 1):
-            for p_end_idx in range(self.n_states):
-                (
-                    self.soc[end, p_end_idx],
-                    self.speed_path_mat[end, p_end_idx],
-                    self.state_path_mat[end, p_end_idx],
-                    self.time_path_mat[end, p_end_idx],
-                    opt_start_speed,
-                ) = self.cost.compute_optimal_cost(
-                    end=end,
-                    p_end_idx=p_end_idx,
-                    speed_matrix=self.speed_path_mat,
-                    initial_speeds=self.initial_speeds,
-                    soc=self.soc,
-                    penalty=penalty,
-                )
-                # Save the optimal starting speed to avoid future calculations
-                # Proabbly should just remove this to avoid the IF evaluation T*N times ¯\(o.o)/¯
-                if self.time_path_mat[end, p_end_idx] == 0:
-                    self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
-                        np.float64(opt_start_speed)
-                    )
-        with objmode(t_end='float64'):
-            t_end = timer()
-        self.execution_time = t_end - t_start
-        return self.backtrack_solution()
-
 
 splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
 @jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
     """ A class that allows to solve the splineOP problem with a fixed number of breaks.
 
- 
     Methods:
     __init__
     fit
     predict
     backtrack_solution
     backtrack_specific
-
     """
     n_points: int64
     n_states: int64
@@ -221,7 +251,6 @@ class splineOPConstrained(object):
             with objmode(t_start_k='float64'):
                 t_start_k = timer()
             for end in range(k, self.n_points + 1): # nb of points seen
-                #pdb.set_trace()
                 for p_end_idx in range(self.n_states): # each state
                     (
                         self.soc[k, end, p_end_idx],
