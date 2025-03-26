@@ -59,12 +59,18 @@ class splineOPPenalized(object):
         """
         Stores the attributes  and computes the sums needed
         for solving each error in O(1).
-
+        
         Arguments:
-        signal (numpy.ndarray): The input signal.
-        states (numpy.ndarray): The states of the system.
-        initial_speeds (numpy.ndarray): The initial speeds of the system.
-        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized.
+        signal ((N,D)-numpy.ndarray): The input signal. N is the number of observations, D their dimensionality.
+        states ((N+1, M, D)numpy.ndarray): The states of the system. M is the number of states. 
+                N+1 because of the extra point at the end when computing continuity. 
+        initial_speeds ((L, D)numpy.ndarray): The initial speeds of the system. L is the number of speeds. D their dimensionality.
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        
+        Important notice:
+            Dimensions must be respected in order for the code to work. This is
+            becomes important when working with 1-dimensional signals, care should
+            be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ). 
         """
         self.n_points = signal.shape[0]
         self.n_states = states.shape[1]
@@ -203,10 +209,16 @@ class splineOPConstrained(object):
         for solving each error in O(1).
 
         Arguments:
-        signal (numpy.ndarray): The input signal.
-        states (numpy.ndarray): The states of the system.
-        initial_speeds (numpy.ndarray): The initial speeds of the system.
-        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized.
+        signal ((N,D)-numpy.ndarray): The input signal. N is the number of observations, D their dimensionality.
+        states ((N+1, M, D)numpy.ndarray): The states of the system. M is the number of states. 
+                N+1 because of the extra point at the end when computing continuity. 
+        initial_speeds ((L, D)numpy.ndarray): The initial speeds of the system. L is the number of speeds. D their dimensionality.
+        normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized. 
+        
+        Important notice:
+            Dimensions must be respected in order for the code to work. This is
+            becomes important when working with 1-dimensional signals, care should
+            be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ).
         """
         self.cost.fit(signal, states, initial_speeds, normalized)
         self.n_points = self.cost.signal.shape[0]
