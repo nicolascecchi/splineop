@@ -283,18 +283,14 @@ class costPenalized(object):
             curr_optimal_time,
             curr_optimal_initial_speed,
         )
-
-
-# splineop_spec = [
-
-
+    
 @jitclass
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
     """
-
-    signal: float64[:, :]
+    # this list of attributes is needed by Numba
+    signal: float64[:, :] # 
     states: float64[:, :, :]
     n_states: int
     initial_speeds: float64[:, :]
@@ -349,16 +345,17 @@ class costConstrained(object):
         """
         Precomputes and caches in object attributes values to compute the cost.
         """
+        
         self.signal = signal
         self.states = states
         self.n_states = states.shape[1]
         self.initial_speeds = initial_speeds
-        self.n_samples = self.signal.shape[0]
+        self.n_samples = signal.shape[0]
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
 
-        # Crossed terms
+        #Crossed terms
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
 

@@ -155,8 +155,6 @@ class splineOPPenalized(object):
 
 
 splineop_spec_Constrained = [("cost", costConstrained.class_type.instance_type)]
-
-
 @jitclass(splineop_spec_Constrained)
 class splineOPConstrained(object):
     """A class that allows to solve the splineOP problem with a fixed number of breaks.
@@ -210,12 +208,13 @@ class splineOPConstrained(object):
         initial_speeds (numpy.ndarray): The initial speeds of the system.
         normalized (bool): (Deprecated, but need to completely remove) Whether the data is normalized.
         """
-        self.n_points = signal.shape[0]
+        self.cost.fit(signal, states, initial_speeds, normalized)
+        self.n_points = self.cost.signal.shape[0]
+        self.ndims = self.cost.signal.shape[1]
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
-        self.cost.fit(signal, states, initial_speeds, normalized)
-        self.ndims = signal.shape[1]
+        
 
     def predict(self, K):
         """
@@ -721,12 +720,12 @@ def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     """
     x = np.linspace(0, 1, len(y), False)
     pct_to_ints = np.round(len(y) * np.array(pcts) / 100).astype(int)
-    speeds = np.array([])
-    for i in pct_to_ints:
+    speeds = np.empty((len(pcts),y.shape[1]))
+    for idx, i in enumerate(pct_to_ints):
         lr = LinearRegression()
-        lr.fit(X=x[:i].reshape(-1, 1), y=y[:i].reshape(-1, 1))
-        speed = lr.coef_[0]
-        speeds = np.concat((speeds, speed))
+        lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
+        speed = lr.coef_.T
+        speeds[idx] = speed
     return speeds
 
 
@@ -774,13 +773,15 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             states[-1] = states[-2]
         return states
     else:
-        each_side = (n_states - 1) // 2
-
-        signal_length, signal_dims = signal.shape
+        each_side = (n_states - 1) // 2            
+        try:
+            signal_length, signal_dims = signal.shape
+        except:
+            signal_length, signal_dims = signal.shape[0], 1
+            signal = signal.reshape(signal_length, signal_dims)
         states_shape = (signal_length + 1, n_states, signal_dims)
         states = np.zeros(shape=states_shape)
         for i in range(each_side, signal_length - each_side - 1):
-
             states[i] = signal[i - each_side : i + each_side + 1]
         for i in range(0, each_side):
             states[i] = signal[0:n_states]
