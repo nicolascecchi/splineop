@@ -718,9 +718,11 @@ def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     pcts (list/1d-array) : % of the signal points to take into account
     for the linear regression. Pctgs expressed as integers.
     """
+    ndims = y.shape[1]
+    nspeeds = len(pcts)
     x = np.linspace(0, 1, len(y), False)
     pct_to_ints = np.round(len(y) * np.array(pcts) / 100).astype(int)
-    speeds = np.empty((len(pcts),y.shape[1]))
+    speeds = np.empty((nspeeds,ndims))
     for idx, i in enumerate(pct_to_ints):
         lr = LinearRegression()
         lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
