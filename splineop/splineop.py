@@ -766,7 +766,7 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
     Returns:
     states (np.NDarray) : (n_obs+1, n_states)-shaped array with the states for each observation.
     """
-    if signal.shape[0] == 1:
+    if signal.shape[1] == 1:
         m = len(signal)
         states = np.zeros((m + 1, n_states))
 
@@ -779,7 +779,7 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             for i in range(m):
                 start = signal[i] - delta / 2
                 end = signal[i] + delta / 2
-                states[i] = np.linspace(start, end, n_states, True)
+                states[i] = np.linspace(start[0], end[0], n_states, True)
             states[-1] = states[-2]
         else:
             for i in range(m):
