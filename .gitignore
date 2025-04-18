@@ -8,6 +8,7 @@ results/
 analysis-notebooks/
 armcoda-case/
 eusipco/
+journal/
 simulation-pipelines/
 .vscode/
 # C extensions
