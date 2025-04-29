@@ -243,6 +243,44 @@ def trend_filtering_pwq(signal: np.ndarray, vlambda: float):
     signal_smoothed = u.value.flatten()
     return signal_smoothed, run_time
 
+def compute_psnr(signal,prediction):
+    """
+    Peak signal to noise ratio. 
+    PSNR = 20 * log_10 (Maximum Intensity) - 10 * log_10 (MSE) 
+
+    Input
+    signal (np.ndarray): Of shape (N samples, N dims).
+    prediction (np.ndarray): Of shape (N samples, N dims).
+
+    Output
+    psnr (float): The PSNR computed between the prediction and the real values. 
+
+    For the Maximum value of the signal we take it empirically from all the dimensions.
+    For the MSE, we compute the average over dimensions and time. 
+
+    """
+    maxi = np.max(signal)
+    mse = np.mean((signal-prediction)**2)
+    psnr = 20 * np.log10(maxi) - 10*np.log10(mse)
+    return psnr
+
+def compute_bic(signal, K):
+    """
+    Computes the BIC of the signal with a given **number of segments** K.
+
+    input
+    signal (np.ndarray): Of shape (N samples, N dims). 
+    K (int): Number of segments being fit.  
+
+    returns 
+    bic (float) : Penalization to fit the model. 
+    """
+    sigma = np.mean(np.std(signal, axis=0))
+    n_params = 1 + 2* K
+    T = len(signal)
+    bic = sigma**2 * n_params * np.log(T)
+    return bic
+
 
 def spline_approximation(data, n_points, pen, degree=2):
     time_array = np.linspace(
