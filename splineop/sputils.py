@@ -262,7 +262,7 @@ def compute_psnr(signal,prediction):
     maxi = np.max(signal)
     mse = np.mean((signal-prediction)**2)
     psnr = 20 * np.log10(maxi) - 10*np.log10(mse)
-    return psnr
+    return psnr, mse
 
 def compute_bic(signal, K):
     """
@@ -280,6 +280,33 @@ def compute_bic(signal, K):
     T = len(signal)
     bic = sigma**2 * n_params * np.log(T)
     return bic
+# Functions
+def multidim_l1tf(y, vlambda):
+    
+    n = y.shape[0]
+    d = y.shape[1]
+    # Form 3rd difference matrix.
+    e = np.ones((1, n))
+    D = scipy.sparse.spdiags(np.vstack((e, -3*e, 3*e, -1*e)), range(4), n-3, n)
+
+    # Set regularization parameter.
+    vlambda = 13.17
+
+    # Solve l1 trend filtering problem.
+    x = cp.Variable(shape=(n,d))
+    obj = cp.Minimize(0.5 * cp.sum_squares(y - x)
+                    + vlambda * cp.norm(D@x, 1) )
+    prob = cp.Problem(obj)
+
+    # ECOS and SCS solvers fail to converge before
+    # the iteration limit. Use CVXOPT instead.
+    prob.solve(solver=cp.CVXOPT, verbose=True)
+    print('Solver status: {}'.format(prob.status))
+
+    # Check for error.
+    if prob.status != cp.OPTIMAL:
+        raise Exception("Solver did not converge!")
+    return prob
 
 
 def spline_approximation(data, n_points, pen, degree=2):
