@@ -282,7 +282,6 @@ def compute_bic(signal, K):
     return bic
 # Functions
 def multidim_l1tf(y, vlambda):
-    
     n = y.shape[0]
     d = y.shape[1]
     # Form 3rd difference matrix.
@@ -307,6 +306,34 @@ def multidim_l1tf(y, vlambda):
     if prob.status != cp.OPTIMAL:
         raise Exception("Solver did not converge!")
     return prob
+def naive_detector(y, threshold=0.05):
+    """
+    Find changes in discrete difference of y when the change
+    in consecutive points is greater than 5 %. 
+
+    In our application, y should be the 2nd derivative of the signal of interest. 
+    Note that it is hard-coded for  
+    """
+    n = y.shape[0]
+    differences = np.diff(y, n=3,axis=0)
+    deltas = np.sum(differences**2,axis=1)
+    pct_consecutive = np.abs(deltas[1:]-deltas[:-1])/deltas[:-1]
+    chgidx = np.where(pct_consecutive > 0.05)[0]
+    if np.any(chgidx==0):
+        chgidx = chgidx[1:]
+    if np.any(chgidx==n-1):
+        chgidx = chgidx[:-1]
+    return chgidx
+
+
+def detect_l1tf(data, vlambda, threshold):
+    pbm = multidim_l1tf(data, vlambda=vlambda)
+
+    k = [_ for _ in pbm._solution.primal_vars.items()][0][0]
+    tf_predictions = pbm._solution.primal_vars[k]
+
+    changes = naive_detector(y=tf_predictions, threshold=threshold)
+    return changes
 
 
 def spline_approximation(data, n_points, pen, degree=2):
