@@ -726,9 +726,17 @@ def get_polynomial_knots_and_states(model):
 
 def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     """
+    Computes set of initial speeds from the observations. 
+
+    Params:
     y (np.array) 1-dimensional array with the observations.
     pcts (list/1d-array) : % of the signal points to take into account
-    for the linear regression. Pctgs expressed as integers.
+        for the linear regression. Pctgs expressed as integers.
+    Returns:
+    speeds (np.array): Array with set of initial speeds. 
+
+    Computes the set of initial speeds as the slope of a linear regression fitted
+    over the first [pcts] percentages of points observed.     
     """
     ndims = y.shape[1]
     nspeeds = len(pcts)
