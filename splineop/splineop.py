@@ -733,7 +733,7 @@ def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     ndims = y.shape[1]
     nspeeds = len(pcts)
     x = np.linspace(0, 1, len(y), False)
-    pct_to_ints = np.round(len(y) * np.array(pcts) / 100).astype(int)
+    pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
     speeds = np.empty((nspeeds,ndims))
     for idx, i in enumerate(pct_to_ints):
         lr = LinearRegression()
@@ -765,6 +765,16 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
 
     Returns:
     states (np.NDarray) : (n_obs+1, n_states)-shaped array with the states for each observation.
+    
+    If the signal is 1-Dimensional, create points around each observation based on the amplitud
+    of the observations. 
+    "Local" hyperparam makes the states around the observed points.
+    
+    If the signal d-Dimensional, the states are taken to be each_side/2 points before and each_side/2 ahead
+    of each observation. For the first/last few points, where this is not possible because you run out of signal,
+    simply repeat the first (or last) n_states points of the signal.
+    We have to do this because discretizing aroung each dimension independtly would lead again to
+    combinatorial explosion. 
     """
     if signal.shape[1] == 1:
         m = len(signal)
@@ -785,7 +795,6 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             for i in range(m):
                 states[i] = np.linspace(min_signal, max_signal, n_states, True)
             states[-1] = states[-2]
-        return states
     else:
         each_side = (n_states - 1) // 2            
         try:
@@ -801,4 +810,5 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             states[i] = signal[0:n_states]
             states[signal_length - (each_side + 1) + i] = signal[-n_states:]
         states[-1] = signal[-n_states:]
-        return states
+
+    return states
