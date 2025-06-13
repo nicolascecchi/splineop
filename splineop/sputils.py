@@ -6,11 +6,12 @@ import pickle
 import time
 import cvxpy as cp
 from scipy import interpolate
+from scipy import sparse
 from scipy.interpolate import splrep, BSpline
 import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Arrow, Circle
-
+from ruptures.metrics import precision_recall
 
 def moving_average(a, n=2):
     """
@@ -243,12 +244,15 @@ def trend_filtering_pwq(signal: np.ndarray, vlambda: float):
     signal_smoothed = u.value.flatten()
     return signal_smoothed, run_time
 
-def compute_psnr(signal,prediction):
+def compute_psnr(signal_observed
+                ,signal_clean
+                ,prediction):
     """
     Peak signal to noise ratio. 
     PSNR = 20 * log_10 (Maximum Intensity) - 10 * log_10 (MSE) 
 
     Input
+    signal_observed
     signal (np.ndarray): Of shape (N samples, N dims).
     prediction (np.ndarray): Of shape (N samples, N dims).
 
@@ -259,25 +263,50 @@ def compute_psnr(signal,prediction):
     For the MSE, we compute the average over dimensions and time. 
 
     """
-    maxi = np.max(signal)
-    mse = np.mean((signal-prediction)**2)
+    maxi = np.max(np.abs(signal_observed))
+    mse = np.mean((signal_clean-prediction)**2)
     psnr = 20 * np.log10(maxi) - 10*np.log10(mse)
     return psnr, mse
 
-def compute_bic(signal, K):
+def compute_f1score(true_bkps, predicted_bkps, margin):
+    """
+    Computes F1 Score.
+
+    bkps lists are the indices of the last point in a segment, including the last point in the signal.
+    
+    """
+    p,r = precision_recall(true_bkps
+                           ,predicted_bkps
+                           ,margin=margin)
+    fscore =  2 * (p*r)/(p+r)
+    return fscore
+
+def sigma_from_srn(snr):
+    sigma = 2
+    return sigma
+def compute_bic(signal, K, by_marker=False, snr=False):
     """
     Computes the BIC of the signal with a given **number of segments** K.
 
     input
     signal (np.ndarray): Of shape (N samples, N dims). 
     K (int): Number of segments being fit.  
+    by_marker (Bool): Whether we consider all sensors together or each by itself. 
+    known_sigma ('float'): Whether we know sigma or not (simulated or real data.) 
 
     returns 
     bic (float) : Penalization to fit the model. 
     """
-    sigma = np.mean(np.std(signal, axis=0))
-    n_params = 1 + 2* K
-    T = len(signal)
+    if snr:
+        sigma=sigma_from_snr(snr)
+    else:
+        sigma = np.mean(np.std(signal, axis=0))
+    T, D = signal.shape
+    if by_marker:
+        n_params = (2 + K) * D + K * D   
+    else:
+        n_params = (2 + K) * D + K
+    
     bic = sigma**2 * n_params * np.log(T)
     return bic
 # Functions
@@ -286,11 +315,9 @@ def multidim_l1tf(y, vlambda):
     d = y.shape[1]
     # Form 3rd difference matrix.
     e = np.ones((1, n))
-    D = scipy.sparse.spdiags(np.vstack((e, -3*e, 3*e, -1*e)), range(4), n-3, n)
+    D = sparse.spdiags(np.vstack((e, -3*e, 3*e, -1*e)), range(4), n-3, n)
 
     # Set regularization parameter.
-    vlambda = 13.17
-
     # Solve l1 trend filtering problem.
     x = cp.Variable(shape=(n,d))
     obj = cp.Minimize(0.5 * cp.sum_squares(y - x)
@@ -299,13 +326,26 @@ def multidim_l1tf(y, vlambda):
 
     # ECOS and SCS solvers fail to converge before
     # the iteration limit. Use CVXOPT instead.
-    prob.solve(solver=cp.CVXOPT, verbose=True)
+    t0 = time.process_time()
+    prob.solve(solver=cp.CLARABEL, verbose=False)
+    run_time = time.process_time() - t0
     print('Solver status: {}'.format(prob.status))
 
     # Check for error.
     if prob.status != cp.OPTIMAL:
         raise Exception("Solver did not converge!")
-    return prob
+    return prob, run_time
+
+def detect_l1tf(data, vlambda, threshold):
+    pbm, time = multidim_l1tf(data, vlambda=vlambda)
+
+    k = [_ for _ in pbm._solution.primal_vars.items()][0][0]
+    tf_predictions = pbm._solution.primal_vars[k]
+
+    changes = naive_detector(y=tf_predictions, threshold=threshold)
+    return changes, time
+
+
 def naive_detector(y, threshold=0.05):
     """
     Find changes in discrete difference of y when the change
@@ -324,17 +364,6 @@ def naive_detector(y, threshold=0.05):
     if np.any(chgidx==n-1):
         chgidx = chgidx[:-1]
     return chgidx
-
-
-def detect_l1tf(data, vlambda, threshold):
-    pbm = multidim_l1tf(data, vlambda=vlambda)
-
-    k = [_ for _ in pbm._solution.primal_vars.items()][0][0]
-    tf_predictions = pbm._solution.primal_vars[k]
-
-    changes = naive_detector(y=tf_predictions, threshold=threshold)
-    return changes
-
 
 def spline_approximation(data, n_points, pen, degree=2):
     time_array = np.linspace(
