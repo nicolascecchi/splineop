@@ -278,7 +278,10 @@ def compute_f1score(true_bkps, predicted_bkps, margin):
     p,r = precision_recall(true_bkps
                            ,predicted_bkps
                            ,margin=margin)
-    fscore =  2 * (p*r)/(p+r)
+    if p+r >0:
+        fscore =  2 * (p*r)/(p+r)
+    else:
+        fscore = np.nan
     return fscore
 
 def sigma_from_srn(snr):
