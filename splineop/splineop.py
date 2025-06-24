@@ -9,6 +9,7 @@ from splineop.costs import *
 import pdb
 from timeit import default_timer as timer
 from sklearn.linear_model import LinearRegression
+from splineop.sputils import sd_hall_diff
 
 
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
@@ -819,4 +820,21 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             states[signal_length - (each_side + 1) + i] = signal[-n_states:]
         states[-1] = signal[-n_states:]
 
+    return states
+
+def state_generator_v2(signal:np.array, n_states:int=5, local:bool=True):
+    try:
+        signal_length, signal_dims = signal.shape
+    except:
+        signal_length, signal_dims = signal.shape[0], 1
+    signal = signal.reshape(signal_length, signal_dims)
+    states_shape = (signal_length, n_states, signal_dims)
+    states = np.zeros(shape=states_shape)   
+    #states[-1] = signal[-1]
+    sdlist = sd_hall_diff(signal,var=False)
+    for dim in range(signal_dims):
+        states[:,:,dim] = np.random.multivariate_normal(mean=signal[:,dim],
+                                            cov=np.eye(signal_length)*sdlist[dim],
+                                            size=n_states).T
+    states =  np.concat((states, states[-1,:,:][None]))
     return states
