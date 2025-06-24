@@ -264,7 +264,7 @@ def compute_psnr(signal_observed
 
     """
     maxi = np.max(np.abs(signal_observed))
-    mse = np.mean((signal_clean-prediction)**2)
+    mse = np.mean(np.linalg.norm(signal_clean-prediction, axis=1, ord=2))
     psnr = 20 * np.log10(maxi) - 10*np.log10(mse)
     return psnr, mse
 
@@ -834,21 +834,33 @@ HALL_DICTIONARY = {
 }
 
 
-def sd_hall_diff(data):
-    wei = np.array([0.1942, 0.2809, 0.3832, -0.8582])
-    corrector = (
-        wei[3] ** 2
-        + (wei[2] - wei[3]) ** 2
-        + (wei[1] - wei[2]) ** 2
-        + (wei[0] - wei[1]) ** 2
-        + wei[0] ** 2
-    )
+def sd_hall_diff(data,var=False):
+    if len(data.shape) == 1:
+        wei = np.array([0.1942, 0.2809, 0.3832, -0.8582])
+        corrector = (
+            wei[3] ** 2
+            + (wei[2] - wei[3]) ** 2
+            + (wei[1] - wei[2]) ** 2
+            + (wei[0] - wei[1]) ** 2
+            + wei[0] ** 2
+        )
 
-    z = np.diff(data)  # diff data
-    n = len(z)
-    mat = wei[:, None] @ z[:, None].T
-    mat[1, : n - 1] = mat[1, 1:]
-    mat[2, : n - 2] = mat[2, 2:]
-    mat[3, : n - 3] = mat[3, 3:]
-    sd = np.sqrt(np.sum(np.sum(mat[:, :-3], axis=0) ** 2) / ((n - 3) * corrector))
-    return sd
+        z = np.diff(data)  # diff data
+        n = len(z)
+        mat = wei[:, None] @ z[:, None].T
+        mat[1, : n - 1 ] = mat[1,  1: ]
+        mat[2, : n - 2] = mat[2,  2:]
+        mat[3, : n - 3] = mat[3, 3:]
+        sd = np.sqrt(np.sum(np.sum(mat[:, :-3], axis=0) ** 2) / ((n - 3) * corrector))
+        if var:
+            return sd**2
+        else:
+            return sd
+    else:
+        # If data is not univariate then process each dimension independently
+        # and return the vector with concatenated estimations.
+        ndims = data.shape[1]
+        sd_storage = np.empty((ndims))
+        for dim in range(ndims):
+            sd_storage[dim] = sd_hall_diff(data[:,dim],var=var)
+        return sd_storage
