@@ -151,7 +151,7 @@ class costPenalized(object):
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
         """
-        samples_in_range = end - start
+        samples_in_range = end - start + 1
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
