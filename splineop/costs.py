@@ -373,13 +373,13 @@ class costConstrained(object):
             case 0:
                 return n
             case 1:
-                return n * (n + 1) / 2
+                return (n + 1) / 2
             case 2:
-                return 1 / 6 * (2 * n**3 + 3 * n**2 + n)
+                return 1 / 6 * (2 * n + 3 * n + 1/n)
             case 3:
-                return 1 / 4 * (n**4 + 2 * n**3 + n**2)
+                return 1 / 4 * (n + 2 + 1/n)
             case 4:
-                return 1 / 30 * (6 * n**5 + 15 * n**4 + 10 * n**3 - n)
+                return 1 / 30 * (6 * n + 15 + 10 * 1/n - 1/(n**3))
 
     def error(
         self,
@@ -403,7 +403,7 @@ class costConstrained(object):
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
         """
-        samples_in_range = end - start
+        samples_in_range = end - start + 1
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
@@ -435,20 +435,16 @@ class costConstrained(object):
         cost_val = np.sum(
             a**2
             * self.Faulhaber(deg=4, n=samples_in_range - 1)
-            * FaulhaberNormalizer**4
             + 2
             * a
             * b
             * self.Faulhaber(deg=3, n=samples_in_range - 1)
-            * FaulhaberNormalizer**3
             + (2 * a * c + b**2)
             * self.Faulhaber(deg=2, n=samples_in_range - 1)
-            * FaulhaberNormalizer**2
             + 2
             * b
             * c
             * self.Faulhaber(deg=1, n=samples_in_range - 1)
-            * FaulhaberNormalizer
             - 2 * a * sum_int_sq_y  # np.sum(integers**2 * y)  # self.sum_n_sq_y
             - 2 * b * sum_int_y  # np.sum(integers * y)  # self.sum_n_y
             + effective_cumsum_sq
