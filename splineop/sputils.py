@@ -264,7 +264,7 @@ def compute_psnr(signal_observed
 
     """
     maxi = np.max(np.abs(signal_observed))
-    mse = np.mean(np.linalg.norm(signal_clean-prediction, axis=1, ord=2))
+    mse = np.mean(np.linalg.norm(signal_clean-prediction, axis=1, ord=2)**2)
     psnr = 20 * np.log10(maxi) - 10*np.log10(mse)
     return psnr, mse
 
