@@ -829,12 +829,12 @@ def state_generator_v2(signal:np.array, n_states:int=5, local:bool=True):
         signal_length, signal_dims = signal.shape[0], 1
     signal = signal.reshape(signal_length, signal_dims)
     states_shape = (signal_length, n_states, signal_dims)
-    states = np.zeros(shape=states_shape)   
+    states = np.zeros(shape=states_shape)
     #states[-1] = signal[-1]
-    sdlist = sd_hall_diff(signal,var=False)
+    varlist = sd_hall_diff(signal,var=True)
     for dim in range(signal_dims):
         states[:,:,dim] = np.random.multivariate_normal(mean=signal[:,dim],
-                                            cov=np.eye(signal_length)*sdlist[dim],
+                                            cov=np.eye(signal_length)*varlist[dim]/n_states,
                                             size=n_states).T
     states =  np.concat((states, states[-1,:,:][None]))
     return states
