@@ -121,13 +121,13 @@ class costPenalized(object):
             case 0:
                 return n
             case 1:
-                return (n + 1) / 2
+                return (n*(n/(2*self.n_samples) + 1/(2*self.n_samples))) 
             case 2:
-                return 1 / 6 * (2 * n + 3 * n + 1/n)
+                return (1 / 3 * n*(n**2 * 1/self.n_samples**2 + 3/2 * n**1 * 1/self.n_samples**2 + 3/6 * 1/self.n_samples**2))
             case 3:
-                return 1 / 4 * (n + 2 + 1/n)
+                return (1 / 4 * n**2 * (n**2 * 1/self.n_samples**3 + 2 * n * 1/self.n_samples**3 + 1/self.n_samples**3))
             case 4:
-                return 1 / 30 * (6 * n + 15 + 10 * 1/n - 1/(n**3))
+                return (1 / 5 * (n**5 * 1/self.n_samples**4 + 5/2 * n**4 * 1/self.n_samples**4 + 10/6 * n**3 * 1/self.n_samples**4 - 5/30*n* 1/self.n_samples**4))
 
     def error(
         self,
@@ -369,13 +369,14 @@ class costConstrained(object):
             case 0:
                 return n
             case 1:
-                return (n + 1) / 2
+                return (n*(n/(2*self.n_samples) + 1/(2*self.n_samples))) 
             case 2:
-                return 1 / 6 * (2 * n + 3 * n + 1/n)
+                return (1 / 3 * n*(n**2 * 1/self.n_samples**2 + 3/2 * n**1 * 1/self.n_samples**2 + 3/6 * 1/self.n_samples**2))
             case 3:
-                return 1 / 4 * (n + 2 + 1/n)
+                return (1 / 4 * n**2 * (n**2 * 1/self.n_samples**3 + 2 * n * 1/self.n_samples**3 + 1/self.n_samples**3))
             case 4:
-                return 1 / 30 * (6 * n + 15 + 10 * 1/n - 1/(n**3))
+                return (1 / 5 * (n**5 * 1/self.n_samples**4 + 5/2 * n**4 * 1/self.n_samples**4 + 10/6 * n**3 * 1/self.n_samples**4 - 5/30*n* 1/self.n_samples**4))
+
 
     def error(
         self,
