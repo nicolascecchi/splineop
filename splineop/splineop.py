@@ -831,10 +831,9 @@ def state_generator_v2(signal:np.array, n_states:int=5, local:bool=True):
     states_shape = (signal_length, n_states, signal_dims)
     states = np.zeros(shape=states_shape)
     #states[-1] = signal[-1]
-    varlist = sd_hall_diff(signal,var=True)
+    varlist = sd_hall_diff(signal,var=False)
     for dim in range(signal_dims):
-        states[:,:,dim] = np.random.multivariate_normal(mean=signal[:,dim],
-                                            cov=np.eye(signal_length)*varlist[dim]/n_states,
-                                            size=n_states).T
+        noise = np.random.normal(0, varlist[dim], (signal_length,n_states))
+        states[:,:,dim] = signal[:,dim,None] + noise
     states =  np.concat((states, states[-1,:,:][None]))
     return states
