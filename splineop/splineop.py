@@ -813,11 +813,11 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             signal = signal.reshape(signal_length, signal_dims)
         states_shape = (signal_length + 1, n_states, signal_dims)
         states = np.zeros(shape=states_shape)
-        for i in range(each_side, signal_length - each_side - 1):
+        for i in range(each_side, signal_length - each_side):
             states[i] = signal[i - each_side : i + each_side + 1]
         for i in range(0, each_side):
-            states[i] = signal[0:n_states]
-            states[signal_length - (each_side + 1) + i] = signal[-n_states:]
+            states[i] = signal[i:n_states+i]
+            states[signal_length - each_side + i] = signal[-n_states:]
         states[-1] = signal[-n_states:]
 
     return states
