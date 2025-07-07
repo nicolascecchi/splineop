@@ -804,6 +804,7 @@ def state_generator(signal, n_states=5, pct=0.05, local=True):
             for i in range(m):
                 states[i] = np.linspace(min_signal, max_signal, n_states, True)
             states[-1] = states[-2]
+        states = np.expand_dims(states, 2) # Ensures dimension as (n_samples+1, n_states, n_dims)
     else:
         each_side = (n_states - 1) // 2            
         try:
