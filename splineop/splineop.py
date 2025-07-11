@@ -124,6 +124,7 @@ class splineOPPenalized(object):
                     self.speed_path_mat[0, self.state_path_mat[end, p_end_idx]] = (
                         opt_start_speed
                     )
+            
         with objmode(t_end="float64"):
             t_end = timer()
         self.execution_time = t_end - t_start
@@ -270,6 +271,7 @@ class splineOPConstrained(object):
         for k in range(1, K + 2):  # nb of segments
             with objmode(t_start_k="float64"):
                 t_start_k = timer()
+            
             for end in range(k, self.n_points + 1):  # nb of points seen
                 for p_end_idx in range(self.n_states):  # each state
                     (

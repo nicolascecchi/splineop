@@ -251,7 +251,7 @@ class costPenalized(object):
         # Cases with change point
         for p_start_idx in range(self.n_states):
             for mid in range(1, end):
-                if (end - mid) <= 2:
+                if (end - mid) <= 1:
                     new_seg_error, new_end_speed = np.inf, np.zeros(
                         (speed_matrix[0].shape[1]), float
                     )
@@ -504,7 +504,7 @@ class costConstrained(object):
                 # previous segments.  Here we use N=1
                 for mid in range(k - 1, end):
                     # Penalize segments shorter than k+1 with infinite cost
-                    if (end - mid) < 3:
+                    if (end - mid) <= 1:
                         new_seg_error = np.inf
                     # Compute cost when segment length is admissible
                     else:
