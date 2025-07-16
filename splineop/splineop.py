@@ -725,7 +725,9 @@ def get_polynomial_knots_and_states(model):
     return poly
 
 
-def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
+def compute_speeds_from_observations(y
+                                     , pcts=None
+                                     , end_indexes=[3,5,8,13,21]):
     """
     Computes set of initial speeds from the observations. 
 
@@ -733,33 +735,48 @@ def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     y (np.array) 1-dimensional array with the observations.
     pcts (list/1d-array) : % of the signal points to take into account
         for the linear regression. Pctgs expressed as integers.
+    end_indexes(list/1d-array): List of indexes to use for the linear regression.
+    
     Returns:
     speeds (np.array): Array with set of initial speeds. 
 
     Computes the set of initial speeds as the slope of a linear regression fitted
-    over the first [pcts] percentages of points observed.     
+    over the first [pcts] percentages (or [idx] end_indexes) of points observed.     
     """
     ndims = y.shape[1]
     nspeeds = len(pcts)
     x = np.linspace(0, 1, len(y), False)
-    pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
     speeds = np.empty((nspeeds,ndims))
-    for idx, i in enumerate(pct_to_ints):
-        lr = LinearRegression()
-        lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
-        speed = lr.coef_.T
-        speeds[idx] = speed
+    
+    if pcts is not None:
+        pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
+        for idx, i in enumerate(pct_to_ints):
+            lr = LinearRegression()
+            lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
+            speed = lr.coef_.T
+            speeds[idx] = speed
+    else:
+        for idx, i in enumerate(end_indexes):
+            lr = LinearRegression()
+            lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
+            speed = lr.coef_.T
+            speeds[idx] = speed
     return speeds
 
 
-def compute_speeds_from_multi_obs(y, pcts=[0.5, 1, 1.5, 2, 2.5]) -> np.array:
+def compute_speeds_from_multi_obs(y
+                                  , pcts=None
+                                  , end_indexes=[3,5,8,13,21]) -> np.array:
     """
     Wrapper around get_speeds to compute over the matrix of observations directly.
 
     y (2d-np.array): N samples x T array of observations
     pcts (list/np.array): Percentages expressed as integers
     """
-    speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, pcts)
+    if pcts is not None:
+        speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, pcts=pcts)
+    else:
+        speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, end_indexes=end_indexes)
     return speeds
 
 
