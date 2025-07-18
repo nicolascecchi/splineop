@@ -741,11 +741,12 @@ def compute_speeds_from_observations(y
     over the first [pcts] percentages (or [idx] end_indexes) of points observed.     
     """
     ndims = y.shape[1]
-    nspeeds = len(pcts)
     x = np.linspace(0, 1, len(y), False)
-    speeds = np.empty((nspeeds,ndims))
+    
     
     if pcts is not None:
+        nspeeds = len(pcts)
+        speeds = np.empty((nspeeds,ndims))
         pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
         for idx, i in enumerate(pct_to_ints):
             lr = LinearRegression()
@@ -753,6 +754,8 @@ def compute_speeds_from_observations(y
             speed = lr.coef_.T
             speeds[idx] = speed
     else:
+        nspeeds = len(end_indexes)
+        speeds = np.empty((nspeeds,ndims))
         for idx, i in enumerate(end_indexes):
             lr = LinearRegression()
             lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
@@ -761,18 +764,4 @@ def compute_speeds_from_observations(y
     return speeds
 
 
-def compute_speeds_from_multi_obs(y
-                                  , pcts=None
-                                  , end_indexes=[3,5,8,13,21]) -> np.array:
-    """
-    Wrapper around get_speeds to compute over the matrix of observations directly.
-
-    y (2d-np.array): N samples x T array of observations
-    pcts (list/np.array): Percentages expressed as integers
-    """
-    if pcts is not None:
-        speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, pcts=pcts)
-    else:
-        speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, end_indexes=end_indexes)
-    return speeds
 
