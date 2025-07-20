@@ -742,8 +742,7 @@ def compute_speeds_from_observations(y
     """
     ndims = y.shape[1]
     x = np.linspace(0, 1, len(y), False)
-    
-    
+
     if pcts is not None:
         nspeeds = len(pcts)
         speeds = np.empty((nspeeds,ndims))
