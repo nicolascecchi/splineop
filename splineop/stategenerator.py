@@ -4,7 +4,7 @@ import numpy as np
 class StateGenerator():
     def __init__(self, signal):
         self.signal = signal 
-    def generate(self, n_states):
+    def fit(self, n_states):
         self.n_states = n_states
         self.states = None
     def get_states(self):
@@ -16,7 +16,7 @@ class AmplitudeGenerator(StateGenerator):
     def __init__(self, signal):
         super().__init__(signal)
 
-    def generate(self,n_states,pct,local):
+    def fit(self,n_states,pct,local):
         m = len(self.signal)
         states = np.zeros((m+1 , n_states))
         
@@ -43,7 +43,7 @@ class RandomGenerator(StateGenerator):
     def __init__(self, signal):
         super().__init__(signal)
 
-    def generate(self, n_states):
+    def fit(self, n_states):
         from splineop.sputils import sd_hall_diff
         # Implement random state generation logic
         try:
@@ -65,7 +65,7 @@ class NeighborsGenerator(StateGenerator):
     def __init__(self, signal):
         super().__init__(signal)
 
-    def generate(self, n_states):
+    def fit(self, n_states):
         if n_states % 2 == 0:
             raise ValueError("n_states must be an odd number for neighborhood generation.")
         if n_states < 3:
