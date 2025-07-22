@@ -52,7 +52,8 @@ class splineOPPenalized(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
-        normalized: bool,
+        sample_size: int = 0 ,
+        normalized: bool = True,
     ):
         """
         Stores the attributes  and computes the sums needed
@@ -70,11 +71,14 @@ class splineOPPenalized(object):
             becomes important when working with 1-dimensional signals, care should
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ). 
         """
+        
         self.n_points = signal.shape[0]
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
-        self.cost.fit(signal, states, initial_speeds, normalized)
+        if sample_size <= 0:
+            sample_size = self.n_points
+        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
         self.ndims = signal.shape[1]
 
     def predict(self, penalty: float) -> None:
@@ -100,6 +104,8 @@ class splineOPPenalized(object):
         with objmode(t_start="float64"):
             t_start = timer()
         for end in range(1, self.n_points + 1):
+            # [end] index will take last value [n_points]\
+            # which is NOT in [signal], but in [states]
             for p_end_idx in range(self.n_states):
                 (
                     self.soc[end, p_end_idx],
