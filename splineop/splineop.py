@@ -87,6 +87,20 @@ class splineOPPenalized(object):
 
         Arguments
         penalty (float): The penalty term. Bigger penalties generate less change points.
+        
+        In the code *end* index is excluded. Is a "forward looking" polynomial point.
+        It kind of refers to "here's the tip of the polynomial". 
+        So, if we are talking about a polynomial that begins at index 0,
+        having end=10 means "you have seen 10 points, [0,1,..,9] and the tip of the polynomial
+        is at position "almost" 10.
+        So there are 10 unit-segments, 10 observed points. 
+        If now mid=1, we observed [1,...,9], the tip is in position 10.
+        We have observed 10-1 = 9 points and have also 9 unit intervals. 
+        This is the reason why the states have an "extra time dimension" so that we can
+        "see" all the signal, and place the tip of the polynomial at the end of the last unit-segment. 
+
+        The non-inclusion of the point indexed by [end] is managed inside the 
+        <Cost> class methods.  
         """
         # Case with change points
 
