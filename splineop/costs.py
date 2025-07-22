@@ -42,6 +42,7 @@ class costPenalized(object):
     states: float64[:, :, :]
     n_states: int
     initial_speeds: float64[:, :]
+    sample_size: int
     normalized: bool
     n_samples: int
     cumsum_y: float64[:, :]
@@ -88,6 +89,7 @@ class costPenalized(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
+        sample_size: int,
         normalized: bool,
     ):
         """
@@ -98,7 +100,7 @@ class costPenalized(object):
         self.states = states
         self.n_states = states.shape[1]  # revisar
         self.initial_speeds = initial_speeds
-        self.n_samples = self.signal.shape[0]
+        self.n_samples = sample_size
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
@@ -151,7 +153,7 @@ class costPenalized(object):
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
         """
-        samples_in_range = end - start + 1
+        samples_in_range = end - start # [end] index excluded
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
@@ -217,7 +219,7 @@ class costPenalized(object):
         Exhaustively computes the cost by evaluating all possible previous change points and initial states.
 
         args
-        end (int): End position for the approximating polynomial P.
+        end (int): End position for the approximating polynomial P, it is NOT included.
         p_end_idx (int):
         speed_matrix (np.ndarray):
 
@@ -236,7 +238,7 @@ class costPenalized(object):
             for v_start_val in initial_speeds:
                 new_seg_error, new_end_speed = self.error(
                     start=0,
-                    end=end,
+                    end=end
                     p_start_val=self.states[0][p_start_idx],
                     p_end_val=self.states[end][p_end_idx],
                     v_start_val=v_start_val,
