@@ -108,6 +108,8 @@ class costPenalized(object):
         # Crossed terms
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
+        # Notice that the first term is 0 because it would
+        # multiply y_i * (t_s - t_s)
 
         int_times_signal = integers[:, None] * self.signal
         self.cumsum_n_y = compute_cusum(int_times_signal)
