@@ -42,7 +42,6 @@ class costPenalized(object):
       states (np.ndarray): Float of shape (N_SAMPLES+1, N_STATES, N_DIMS) 
       n_states (int): Number of states. Dim 1 of <states>.
       initial_speeds (np.ndarray): Float of shaoe (N_SPEEDS, N_DIMS)
-      sample_size (int): Number of samples in the ORIGINAL signal, in case you are using a subsequence of it. 
       normalized (bool): Whether the interval in time is considered in [0,1] or [0,N_SAMPLES-1]
       n_samples (int): Number of samples in <signal>.
       cumsum_y (np.ndarray): Cumulative sum of the signal.
@@ -55,7 +54,6 @@ class costPenalized(object):
     states: float64[:, :, :]
     n_states: int
     initial_speeds: float64[:, :]
-    sample_size: int
     normalized: bool
     n_samples: int
     cumsum_y: float64[:, :]
@@ -331,7 +329,6 @@ class costConstrained(object):
       states (np.ndarray): Float of shape (N_SAMPLES+1, N_STATES, N_DIMS) 
       n_states (int): Number of states. Dim 1 of <states>.
       initial_speeds (np.ndarray): Float of shaoe (N_SPEEDS, N_DIMS)
-      sample_size (int): Number of samples in the ORIGINAL signal, in case you are using a subsequence of it. 
       normalized (bool): Whether the interval in time is considered in [0,1] or [0,N_SAMPLES-1]
       n_samples (int): Number of samples in <signal>.
       cumsum_y (np.ndarray): Cumulative sum of the signal.
@@ -394,6 +391,7 @@ class costConstrained(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
+        sample_size: int,
         normalized: bool,
     ):
         """
@@ -404,7 +402,7 @@ class costConstrained(object):
         self.states = states
         self.n_states = states.shape[1]
         self.initial_speeds = initial_speeds
-        self.n_samples = signal.shape[0]
+        self.n_samples = sample_size
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
