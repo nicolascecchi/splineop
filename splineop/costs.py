@@ -36,6 +36,18 @@ def compute_cusum(r: np.ndarray) -> np.ndarray:
 class costPenalized(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
+    
+    Attributes:
+      signal (np.ndarray): Float of shape (N_SAMPLES, N_DIMS).
+      states (np.ndarray): Float of shape (N_SAMPLES+1, N_STATES, N_DIMS) 
+      n_states (int): Number of states. Dim 1 of <states>.
+      initial_speeds (np.ndarray): Float of shaoe (N_SPEEDS, N_DIMS)
+      normalized (bool): Whether the interval in time is considered in [0,1] or [0,N_SAMPLES-1]
+      n_samples (int): Number of samples in <signal>.
+      cumsum_y (np.ndarray): Cumulative sum of the signal.
+      cumsum_y_sq (np.ndarray): Cumulative sum of the squared signal.
+      cumsum_n_y (np.ndarray): Cumulative sum of i * y_i.
+      cumsum_n_sq_y (np.ndarray): Cumulative sum of i**2 * y_i.
     """
 
     signal: float64[:, :]
@@ -56,6 +68,10 @@ class costPenalized(object):
         """
         Computes the 'crossed terms' in the cost of a segment, of the form \sum (n * y),\sum (n^2 * y)
 
+        Args
+        s (int): Index for starting the sums.
+        t (int): Index for the last term. Note that we do <t-1> because of 0-indexing in Python.
+        
         'effective' refers to the fact that when starting index is not 0, you have to take the difference
         """
         end = t - 1
@@ -88,6 +104,7 @@ class costPenalized(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
+        sample_size: int,
         normalized: bool,
     ):
         """
@@ -98,7 +115,7 @@ class costPenalized(object):
         self.states = states
         self.n_states = states.shape[1]  # revisar
         self.initial_speeds = initial_speeds
-        self.n_samples = self.signal.shape[0]
+        self.n_samples = sample_size
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
@@ -106,6 +123,8 @@ class costPenalized(object):
         # Crossed terms
         T = self.signal.shape[0]
         integers = np.arange(0, T, 1)
+        # Notice that the first term is 0 because it would
+        # multiply y_i * (t_s - t_s)
 
         int_times_signal = integers[:, None] * self.signal
         self.cumsum_n_y = compute_cusum(int_times_signal)
@@ -115,7 +134,11 @@ class costPenalized(object):
 
     def Faulhaber(self, deg: int, n: int) -> int:
         """
-        Compute the sum of the first n integers to the power of deg.
+        Warning! This implementation is a "pseudo-Faulhaber".
+        
+        Real Faulhaber : Compute the sum of the first n integers to the power of deg.
+        Our Faulhaber: Computes the sum of the first n segments of length 1/n_samples.
+        The inclusion of the dividing term obeys a numerical-issues perpective of avoiding exploding sums. 
         """
         match deg:
             case 0:
@@ -139,6 +162,8 @@ class costPenalized(object):
     ) -> tuple[float, float]:
         """
         Computes the error on the interval [start, end) and the final speed of the associated polynomial.
+        Note that <end> index is NOT included. See Notes below.
+
 
         args
         start (int): Starting position for the approximating the polynomial P.
@@ -150,8 +175,22 @@ class costPenalized(object):
         returns
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
+
+        ---------------------------------------------------
+        Notes
+
+        The implementation computes the cost in the interval [start, end) where END is not included.
+        However, the END index is used for the "tip" of the polynomial. That is, the polynomial we are
+        approximating goes just up to END but does not "touch" it. 
+        This has several implications:
+            - The interval is made of END - START segments, 
+            with which we compute the resulting acceleration of starting from time-stamp <start> at a position
+            <p_start_val> and arriving at time-stamp <end> to the position <p_end_val>.
+            - The number of points in the segments is effectively END - START. 
+              When normally one thinks of END - START + 1, here is END - START + 1 - 1 because END should not be counted. 
+
         """
-        samples_in_range = end - start + 1
+        samples_in_range = end - start # [end] index excluded
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
@@ -214,10 +253,10 @@ class costPenalized(object):
         """
         Computes the optimal cost of having seen <end> points and ending at position states[p_end_idx].
 
-        Exhaustively computes the cost by evaluating all possible previous change points and initial states.
+        Computes the cost by evaluating many possible previous change points and initial states.
 
         args
-        end (int): End position for the approximating polynomial P.
+        end (int): End position for the approximating polynomial P, it is NOT included.
         p_end_idx (int):
         speed_matrix (np.ndarray):
 
@@ -284,6 +323,18 @@ class costPenalized(object):
 class costConstrained(object):
     """
     Class that stores values to compute efficiently the cost of a given segment.
+    
+    Attributes:
+      signal (np.ndarray): Float of shape (N_SAMPLES, N_DIMS).
+      states (np.ndarray): Float of shape (N_SAMPLES+1, N_STATES, N_DIMS) 
+      n_states (int): Number of states. Dim 1 of <states>.
+      initial_speeds (np.ndarray): Float of shaoe (N_SPEEDS, N_DIMS)
+      normalized (bool): Whether the interval in time is considered in [0,1] or [0,N_SAMPLES-1]
+      n_samples (int): Number of samples in <signal>.
+      cumsum_y (np.ndarray): Cumulative sum of the signal.
+      cumsum_y_sq (np.ndarray): Cumulative sum of the squared signal.
+      cumsum_n_y (np.ndarray): Cumulative sum of i * y_i.
+      cumsum_n_sq_y (np.ndarray): Cumulative sum of i**2 * y_i.
     """
     # this list of attributes is needed by Numba
     signal: float64[:, :] # 
@@ -304,6 +355,10 @@ class costConstrained(object):
         """
         Computes the 'crossed terms' in the cost of a segment, of the form \sum (n * y),\sum (n^2 * y)
 
+        Args
+        s (int): Index for starting the sums.
+        t (int): Index for the last term. Note that we do <t-1> because of 0-indexing in Python.
+        
         'effective' refers to the fact that when starting index is not 0, you have to take the difference
         """
         end = t - 1
@@ -336,6 +391,7 @@ class costConstrained(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
+        sample_size: int,
         normalized: bool,
     ):
         """
@@ -346,7 +402,7 @@ class costConstrained(object):
         self.states = states
         self.n_states = states.shape[1]
         self.initial_speeds = initial_speeds
-        self.n_samples = signal.shape[0]
+        self.n_samples = sample_size
         self.normalized = normalized
         self.cumsum_y = compute_cusum(self.signal)
         self.cumsum_y_sq = compute_cusum(self.signal**2)
@@ -363,7 +419,11 @@ class costConstrained(object):
 
     def Faulhaber(self, deg: int, n: int) -> int:
         """
-        Compute the sum of the first n integers to the power of deg.
+        Warning! This implementation is a "pseudo-Faulhaber".
+        
+        Real Faulhaber : Compute the sum of the first n integers to the power of deg.
+        Our Faulhaber: Computes the sum of the first n segments of length 1/n_samples.
+        The inclusion of the dividing term obeys a numerical-issues perpective of avoiding exploding sums. 
         """
         match deg:
             case 0:
@@ -399,8 +459,23 @@ class costConstrained(object):
         returns
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
+        
+        ---------------------------------------------------
+        Notes
+
+        The implementation computes the cost in the interval [start, end) where END is not included.
+        However, the END index is used for the "tip" of the polynomial. That is, the polynomial we are
+        approximating goes just up to END but does not "touch" it. 
+        This has several implications:
+            - The interval is made of END - START segments, 
+            with which we compute the resulting acceleration of starting from time-stamp <start> at a position
+            <p_start_val> and arriving at time-stamp <end> to the position <p_end_val>.
+            - The number of points in the segments is effectively END - START. 
+              When normally one thinks of END - START + 1, here is END - START + 1 - 1 because END should not be counted. 
+               
+        
         """
-        samples_in_range = end - start + 1
+        samples_in_range = end - start 
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
@@ -463,7 +538,7 @@ class costConstrained(object):
         """
         Computes the optimal cost of having seen <end> points and ending at position states[p_end_idx].
 
-        Exhaustively computes the cost by evaluating all possible previous change points and initial states.
+        Computes the cost by evaluating many possible previous change points and initial states.
 
         args
         end (int): End position for the approximating polynomial P.

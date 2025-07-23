@@ -3,13 +3,10 @@ from numba import njit, objmode
 from numba.experimental import jitclass
 from numba import int64, float64, int64, float64
 from scipy import interpolate
-from scipy.stats import dirichlet
 import matplotlib.pyplot as plt
 from splineop.costs import *
-import pdb
 from timeit import default_timer as timer
 from sklearn.linear_model import LinearRegression
-from splineop.sputils import sd_hall_diff
 
 
 splineop_spec_Pen = [("cost", costPenalized.class_type.instance_type)]
@@ -55,7 +52,8 @@ class splineOPPenalized(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
-        normalized: bool,
+        sample_size: int = 0 ,
+        normalized: bool = True,
     ):
         """
         Stores the attributes  and computes the sums needed
@@ -73,11 +71,14 @@ class splineOPPenalized(object):
             becomes important when working with 1-dimensional signals, care should
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ). 
         """
+        
         self.n_points = signal.shape[0]
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
-        self.cost.fit(signal, states, initial_speeds, normalized)
+        if sample_size <= 0:
+            sample_size = self.n_points
+        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
         self.ndims = signal.shape[1]
 
     def predict(self, penalty: float) -> None:
@@ -86,6 +87,20 @@ class splineOPPenalized(object):
 
         Arguments
         penalty (float): The penalty term. Bigger penalties generate less change points.
+        
+        In the code *end* index is excluded. Is a "forward looking" polynomial point.
+        It kind of refers to "here's the tip of the polynomial". 
+        So, if we are talking about a polynomial that begins at index 0,
+        having end=10 means "you have seen 10 points, [0,1,..,9] and the tip of the polynomial
+        is at position "almost" 10.
+        So there are 10 unit-segments, 10 observed points. 
+        If now mid=1, we observed [1,...,9], the tip is in position 10.
+        We have observed 10-1 = 9 points and have also 9 unit intervals. 
+        This is the reason why the states have an "extra time dimension" so that we can
+        "see" all the signal, and place the tip of the polynomial at the end of the last unit-segment. 
+
+        The non-inclusion of the point indexed by [end] is managed inside the 
+        <Cost> class methods.  
         """
         # Case with change points
 
@@ -103,6 +118,8 @@ class splineOPPenalized(object):
         with objmode(t_start="float64"):
             t_start = timer()
         for end in range(1, self.n_points + 1):
+            # [end] index will take last value [n_points]\
+            # which is NOT in [signal], but in [states]
             for p_end_idx in range(self.n_states):
                 (
                     self.soc[end, p_end_idx],
@@ -204,7 +221,8 @@ class splineOPConstrained(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
-        normalized: bool,
+        sample_size: int = 0,
+        normalized: bool = True,
     ):
         """
         Stores the attributes  and computes the sums needed
@@ -222,13 +240,15 @@ class splineOPConstrained(object):
             becomes important when working with 1-dimensional signals, care should
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ).
         """
-        self.cost.fit(signal, states, initial_speeds, normalized)
         self.n_points = self.cost.signal.shape[0]
-        self.ndims = self.cost.signal.shape[1]
+        
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
-        
+        if sample_size<=0:
+            sample_size = self.n_points
+        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
+        self.ndims = signal.shape[1]
 
     def predict(self, K):
         """
@@ -412,174 +432,6 @@ def plot_pw_results(
     plt.show()
 
 
-def get_polynomial_from_penalized_model(
-    model, y, method="scipy", s=None
-) -> interpolate.PPoly:
-    """
-    Reconstruct the approximating polynomial.
-    """
-    if method == "scipy":
-        x = np.linspace(0, 1, model.n_points, endpoint=False)
-        values = model.states[model.state_idx_sequence]
-        bkps = model.bkps
-        if len(bkps) > 0:
-            if bkps[0] < 3:
-                bkps[0] = 3
-            if bkps[-1] > model.n_points - 3:
-                bkps[-1] = model.n_points - 3
-        if s == None:
-            s = 0.1  # default value
-        t = np.hstack(tup=(np.array([0, 0, 0]), bkps / model.n_points))
-        t = np.hstack((t, np.array([1, 1, 1])))
-        tck = interpolate.make_splrep(x, y, xb=x.min(), xe=x.max(), k=2, t=t, s=s)
-        polynomial = interpolate.PPoly.from_spline(tck)
-
-    else:
-        intbkps = model.bkps.astype(int)
-        n_points = model.n_points
-        step_size = 1 / n_points
-        n_steps = np.diff(intbkps)  # between change points
-        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
-
-        # First segment parameters
-        segment_start_speed = model.speed_path_mat[0, model.state_idx_sequence[0]]
-        speed = np.array([segment_start_speed])
-        acc = np.array(
-            []
-        )  # Acceleration here depends on final speed, it is added afterwards
-
-        # Rest of the points
-        # Iterate over polynomial segments
-        for bkp_idx in range(1, L):
-            # Get the end speed for this segment
-            segment_start_speed = model.speed_path_mat[
-                intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
-            ]
-            speed = np.append(
-                arr=speed,
-                values=segment_start_speed,
-            )
-            # Compute acceleration for the previous segment
-            prev_seg_acc = np.array(
-                [
-                    (speed[bkp_idx] - speed[bkp_idx - 1])
-                    / (2 * n_steps[bkp_idx - 1] * step_size)
-                ]
-            )
-            acc = np.concatenate((acc, prev_seg_acc))
-
-        # Final speed and acceleration
-        final_speed = model.speed_path_mat[intbkps[L], model.state_idx_sequence[L]]
-        prev_seg_acc = np.array(
-            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
-        )
-        acc = np.concatenate((acc, prev_seg_acc))
-
-        # Polynomial parameters and construction
-        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
-        x = intbkps
-        polynomial = interpolate.PPoly(c=c, x=x * step_size)
-
-    return polynomial
-
-
-def get_polynomial_from_constrained_model(
-    model, y, method="scipy"
-) -> interpolate.PPoly:
-    """
-    Reconstruct the approximating polynomial.
-    """
-    if method == "scipy":
-        x = np.linspace(0, 1, model.n_points, endpoint=False)
-        values = model.states[model.state_idx_sequence]
-        bkps = model.bkps
-        if len(bkps) > 0:
-            if bkps[0] < 3:
-                bkps[0] = 3
-            if bkps[-1] > model.n_points - 3:
-                bkps[-1] = model.n_points - 3
-        t = np.hstack((np.array([0, 0, 0]), bkps / model.n_points))
-        t = np.hstack((t, np.array([1, 1, 1])))
-        tck = interpolate.make_lsq_spline(
-            x,
-            y,
-            t=t,
-            k=2,
-        )
-        polynomial = interpolate.PPoly.from_spline(tck)
-
-    else:
-        intbkps = model.knots.astype(int)
-        n_points = model.n_points
-        step_size = 1 / n_points
-        n_steps = np.diff(intbkps)  # between change points
-        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
-
-        # First segment parameters
-        segment_start_speed = model.speed_path_mat[0, 0, model.state_idx_sequence[0]]
-        speed = np.array([segment_start_speed])
-        acc = np.array(
-            []
-        )  # Acceleration here depends on final speed, it is added afterwards
-
-        # Rest of the points
-        # Iterate over polynomial segments
-        for bkp_idx in range(1, L):
-            # Get the end speed for this segment
-            segment_start_speed = model.speed_path_mat[
-                bkp_idx, intbkps[bkp_idx - 1], model.state_idx_sequence[bkp_idx]
-            ]
-            speed = np.append(
-                arr=speed,
-                values=segment_start_speed,
-            )
-            # Compute acceleration for the previous segment
-            prev_seg_acc = np.array(
-                [
-                    (speed[bkp_idx] - speed[bkp_idx - 1])
-                    / (2 * n_steps[bkp_idx - 1] * step_size)
-                ]
-            )
-            acc = np.concatenate((acc, prev_seg_acc))
-
-        # Final speed and acceleration
-        final_speed = model.speed_path_mat[L, intbkps[L], model.state_idx_sequence[L]]
-        prev_seg_acc = np.array(
-            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
-        )
-        acc = np.concatenate((acc, prev_seg_acc))
-
-        # Polynomial parameters and construction
-        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
-        x = intbkps
-        polynomial = interpolate.PPoly(c=c, x=x * step_size)
-
-    return polynomial
-
-
-def draw_bkps(n_bkps, n_samples, normalized, random_state):
-    """
-    Draw random changepoint indexes.
-
-    Args:
-    n_bkps (int) : Number of break points in the sample.
-    n_samples (int) : Total points in the signal. It will add last point as final break point.
-    random_state (int) : Random seed for sampling.
-
-    Returns:
-    bkps (np.array) : A (n_bkps + 1)-long array with the breakpoints, where bkps_int[-1] = n_samples.
-    """
-    rng = np.random.default_rng(random_state)
-    alpha = np.ones(n_bkps + 1, dtype=int) * n_samples
-    bkps_float = rng.dirichlet(alpha)
-    if normalized:
-        bkps = np.cumsum(bkps_float).astype(float).tolist()
-        bkps[-1] = 1
-    else:
-        bkps = np.cumsum(bkps_float * n_samples).astype(int).tolist()
-        bkps[-1] = n_samples
-    return bkps
-
 
 def generate_pw_quadratic(
     n_bkps: int = 5,
@@ -688,46 +540,10 @@ def generate_pw_quadratic(
     return final_poly
 
 
-def get_polynomial_knots_and_states(model):
 
-    knots = model.knots  # includes 0 and n_points
-    state_sequence = model.states[model.state_idx_sequence]  # includes first and last
-    n_points = model.n_points
-    speeds = (
-        model.initial_speeds
-    )  # for the moment it's only 1 speed, may need to refactor later
-
-    coeff = np.empty(
-        (3, len(knots) - 1)
-    )  # we don't need coeffs for the segment after the last knot
-    coeff[2, :] = state_sequence[:-1]
-    coeff[1, 0] = speeds[0]
-
-    dknots = np.diff(knots / n_points)
-    p_i = state_sequence[0]
-    dp = np.diff(state_sequence)
-    v_i = speeds[0]
-
-    for i in range(len(dknots) - 1):
-        a_i = (dp[i]) / (dknots[i]) ** 2 - v_i / dknots[i]
-        coeff[0, i] = a_i
-        # Exits
-        v_i = v_i + 2 * a_i * dknots[i]
-        coeff[1, i + 1] = v_i
-        p_i = state_sequence[i + 1]
-    coeff[0, len(dknots) - 1] = (dp[len(dknots) - 1]) / (
-        dknots[len(dknots) - 1]
-    ) ** 2 - v_i / dknots[len(dknots) - 1]
-    # Coeff[1/2, last] has the final point and exit speed, but
-    # we cannot get an acceleration there (nor are we interested in it)
-    # but it is eassier to loop around this way
-    coeff = coeff[:, :]
-    knots = knots[:] / n_points
-    poly = interpolate.PPoly(coeff, knots)
-    return poly
-
-
-def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
+def compute_speeds_from_observations(y
+                                     , pcts=None
+                                     , end_indexes=[3,5,8,13,21]):
     """
     Computes set of initial speeds from the observations. 
 
@@ -735,108 +551,35 @@ def compute_speeds_from_observations(y, pcts=[0.5, 1, 1.5, 2, 2.5]):
     y (np.array) 1-dimensional array with the observations.
     pcts (list/1d-array) : % of the signal points to take into account
         for the linear regression. Pctgs expressed as integers.
+    end_indexes(list/1d-array): List of indexes to use for the linear regression.
+    
     Returns:
     speeds (np.array): Array with set of initial speeds. 
 
     Computes the set of initial speeds as the slope of a linear regression fitted
-    over the first [pcts] percentages of points observed.     
+    over the first [pcts] percentages (or [idx] end_indexes) of points observed.     
     """
     ndims = y.shape[1]
-    nspeeds = len(pcts)
     x = np.linspace(0, 1, len(y), False)
-    pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
-    speeds = np.empty((nspeeds,ndims))
-    for idx, i in enumerate(pct_to_ints):
-        lr = LinearRegression()
-        lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
-        speed = lr.coef_.T
-        speeds[idx] = speed
-    return speeds
 
-
-def compute_speeds_from_multi_obs(y, pcts=[0.5, 1, 1.5, 2, 2.5]) -> np.array:
-    """
-    Wrapper around get_speeds to compute over the matrix of observations directly.
-
-    y (2d-np.array): N samples x T array of observations
-    pcts (list/np.array): Percentages expressed as integers
-    """
-    speeds = np.apply_along_axis(compute_speeds_from_observations, 1, y, pcts)
-    return speeds
-
-
-def state_generator(signal, n_states=5, pct=0.05, local=True):
-    """
-    Generates a grid of states around the observations.
-
-    Parameters:
-    signal (np.array) : Array of observations
-    n_states (int) : Number of states to fit.
-    pct (float) : Percentage of the value range to be taken to form the states-grid.
-
-    Returns:
-    states (np.NDarray) : (n_obs+1, n_states)-shaped array with the states for each observation.
-    
-    If the signal is 1-Dimensional, create points around each observation based on the amplitud
-    of the observations. 
-    "Local" hyperparam makes the states around the observed points.
-    
-    If the signal d-Dimensional, the states are taken to be each_side/2 points before and each_side/2 ahead
-    of each observation. For the first/last few points, where this is not possible because you run out of signal,
-    simply repeat the first (or last) n_states points of the signal.
-    We have to do this because discretizing aroung each dimension independtly would lead again to
-    combinatorial explosion. 
-    """
-    if signal.shape[1] == 1:
-        m = len(signal)
-        states = np.zeros((m + 1, n_states))
-
-        # Compute the inverval around the points
-        max_signal = np.max(signal)
-        min_signal = np.min(signal)
-        interval = np.abs(max_signal - min_signal)
-        delta = interval * pct
-        if local:
-            for i in range(m):
-                start = signal[i] - delta / 2
-                end = signal[i] + delta / 2
-                states[i] = np.linspace(start[0], end[0], n_states, True)
-            states[-1] = states[-2]
-        else:
-            for i in range(m):
-                states[i] = np.linspace(min_signal, max_signal, n_states, True)
-            states[-1] = states[-2]
-        np.expand_dims(states, 2) # Ensures dimension as (n_samples+1, n_states, n_dims)
+    if pcts is not None:
+        nspeeds = len(pcts)
+        speeds = np.empty((nspeeds,ndims))
+        pct_to_ints = np.ceil(len(y) * np.array(pcts) / 100).astype(int)
+        for idx, i in enumerate(pct_to_ints):
+            lr = LinearRegression()
+            lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
+            speed = lr.coef_.T
+            speeds[idx] = speed
     else:
-        each_side = (n_states - 1) // 2            
-        try:
-            signal_length, signal_dims = signal.shape
-        except:
-            signal_length, signal_dims = signal.shape[0], 1
-            signal = signal.reshape(signal_length, signal_dims)
-        states_shape = (signal_length + 1, n_states, signal_dims)
-        states = np.zeros(shape=states_shape)
-        for i in range(each_side, signal_length - each_side):
-            states[i] = signal[i - each_side : i + each_side + 1]
-        for i in range(0, each_side):
-            states[i] = signal[i:n_states+i]
-            states[signal_length - each_side + i] = signal[-n_states:]
-        states[-1] = signal[-n_states:]
+        nspeeds = len(end_indexes)
+        speeds = np.empty((nspeeds,ndims))
+        for idx, i in enumerate(end_indexes):
+            lr = LinearRegression()
+            lr.fit(X=x[:i].reshape(-1, 1), y=y[:i])
+            speed = lr.coef_.T
+            speeds[idx] = speed
+    return speeds
 
-    return states
 
-def state_generator_v2(signal:np.array, n_states:int=5, local:bool=True):
-    try:
-        signal_length, signal_dims = signal.shape
-    except:
-        signal_length, signal_dims = signal.shape[0], 1
-    signal = signal.reshape(signal_length, signal_dims)
-    states_shape = (signal_length, n_states, signal_dims)
-    states = np.zeros(shape=states_shape)
-    #states[-1] = signal[-1]
-    varlist = sd_hall_diff(signal,var=False)
-    for dim in range(signal_dims):
-        noise = np.random.normal(0, varlist[dim], (signal_length,n_states))
-        states[:,:,dim] = signal[:,dim,None] + noise
-    states =  np.concat((states, states[-1,:,:][None]))
-    return states
+
