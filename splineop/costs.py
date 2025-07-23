@@ -240,7 +240,7 @@ class costPenalized(object):
             for v_start_val in initial_speeds:
                 new_seg_error, new_end_speed = self.error(
                     start=0,
-                    end=end
+                    end=end,
                     p_start_val=self.states[0][p_start_idx],
                     p_end_val=self.states[end][p_end_idx],
                     v_start_val=v_start_val,
@@ -404,7 +404,7 @@ class costConstrained(object):
         cost_val (float): Value error on the interval.
         vend (float): Speed at the end-point of the interval.
         """
-        samples_in_range = end - start + 1
+        samples_in_range = end - start 
         if self.normalized:
             x_interval = samples_in_range * 1 / (self.n_samples)
         else:
