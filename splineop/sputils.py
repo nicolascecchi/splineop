@@ -864,3 +864,149 @@ def sd_hall_diff(data,var=False):
         for dim in range(ndims):
             sd_storage[dim] = sd_hall_diff(data[:,dim],var=var)
         return sd_storage
+
+
+def get_polynomial_from_penalized_model(
+    model, y, method="scipy", s=None
+) -> interpolate.PPoly:
+    """
+    Reconstruct the approximating polynomial.
+    """
+    if method == "scipy":
+        x = np.linspace(0, 1, model.n_points, endpoint=False)
+        values = model.states[model.state_idx_sequence]
+        bkps = model.bkps
+        if len(bkps) > 0:
+            if bkps[0] < 3:
+                bkps[0] = 3
+            if bkps[-1] > model.n_points - 3:
+                bkps[-1] = model.n_points - 3
+        if s == None:
+            s = 0.1  # default value
+        t = np.hstack(tup=(np.array([0, 0, 0]), bkps / model.n_points))
+        t = np.hstack((t, np.array([1, 1, 1])))
+        tck = interpolate.make_splrep(x, y, xb=x.min(), xe=x.max(), k=2, t=t, s=s)
+        polynomial = interpolate.PPoly.from_spline(tck)
+
+    else:
+        intbkps = model.bkps.astype(int)
+        n_points = model.n_points
+        step_size = 1 / n_points
+        n_steps = np.diff(intbkps)  # between change points
+        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
+
+        # First segment parameters
+        segment_start_speed = model.speed_path_mat[0, model.state_idx_sequence[0]]
+        speed = np.array([segment_start_speed])
+        acc = np.array(
+            []
+        )  # Acceleration here depends on final speed, it is added afterwards
+
+        # Rest of the points
+        # Iterate over polynomial segments
+        for bkp_idx in range(1, L):
+            # Get the end speed for this segment
+            segment_start_speed = model.speed_path_mat[
+                intbkps[bkp_idx], model.state_idx_sequence[bkp_idx]
+            ]
+            speed = np.append(
+                arr=speed,
+                values=segment_start_speed,
+            )
+            # Compute acceleration for the previous segment
+            prev_seg_acc = np.array(
+                [
+                    (speed[bkp_idx] - speed[bkp_idx - 1])
+                    / (2 * n_steps[bkp_idx - 1] * step_size)
+                ]
+            )
+            acc = np.concatenate((acc, prev_seg_acc))
+
+        # Final speed and acceleration
+        final_speed = model.speed_path_mat[intbkps[L], model.state_idx_sequence[L]]
+        prev_seg_acc = np.array(
+            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
+        )
+        acc = np.concatenate((acc, prev_seg_acc))
+
+        # Polynomial parameters and construction
+        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
+        x = intbkps
+        polynomial = interpolate.PPoly(c=c, x=x * step_size)
+
+    return polynomial
+
+
+def get_polynomial_from_constrained_model(
+    model, y, method="scipy"
+) -> interpolate.PPoly:
+    """
+    Reconstruct the approximating polynomial.
+    """
+    if method == "scipy":
+        x = np.linspace(0, 1, model.n_points, endpoint=False)
+        values = model.states[model.state_idx_sequence]
+        bkps = model.bkps
+        if len(bkps) > 0:
+            if bkps[0] < 3:
+                bkps[0] = 3
+            if bkps[-1] > model.n_points - 3:
+                bkps[-1] = model.n_points - 3
+        t = np.hstack((np.array([0, 0, 0]), bkps / model.n_points))
+        t = np.hstack((t, np.array([1, 1, 1])))
+        tck = interpolate.make_lsq_spline(
+            x,
+            y,
+            t=t,
+            k=2,
+        )
+        polynomial = interpolate.PPoly.from_spline(tck)
+
+    else:
+        intbkps = model.knots.astype(int)
+        n_points = model.n_points
+        step_size = 1 / n_points
+        n_steps = np.diff(intbkps)  # between change points
+        L = len(intbkps) - 1  # Nb of polynomial segments to parametrize
+
+        # First segment parameters
+        segment_start_speed = model.speed_path_mat[0, 0, model.state_idx_sequence[0]]
+        speed = np.array([segment_start_speed])
+        acc = np.array(
+            []
+        )  # Acceleration here depends on final speed, it is added afterwards
+
+        # Rest of the points
+        # Iterate over polynomial segments
+        for bkp_idx in range(1, L):
+            # Get the end speed for this segment
+            segment_start_speed = model.speed_path_mat[
+                bkp_idx, intbkps[bkp_idx - 1], model.state_idx_sequence[bkp_idx]
+            ]
+            speed = np.append(
+                arr=speed,
+                values=segment_start_speed,
+            )
+            # Compute acceleration for the previous segment
+            prev_seg_acc = np.array(
+                [
+                    (speed[bkp_idx] - speed[bkp_idx - 1])
+                    / (2 * n_steps[bkp_idx - 1] * step_size)
+                ]
+            )
+            acc = np.concatenate((acc, prev_seg_acc))
+
+        # Final speed and acceleration
+        final_speed = model.speed_path_mat[L, intbkps[L], model.state_idx_sequence[L]]
+        prev_seg_acc = np.array(
+            [(final_speed - speed[L - 1]) / (2 * n_steps[L - 1] * step_size)]
+        )
+        acc = np.concatenate((acc, prev_seg_acc))
+
+        # Polynomial parameters and construction
+        c = np.array([acc, speed, model.states[model.state_idx_sequence[:-1]]])
+        x = intbkps
+        polynomial = interpolate.PPoly(c=c, x=x * step_size)
+
+    return polynomial
+
