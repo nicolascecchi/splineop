@@ -220,7 +220,8 @@ class splineOPConstrained(object):
         signal: np.ndarray,
         states: np.ndarray,
         initial_speeds: np.ndarray,
-        normalized: bool,
+        sample_size: int = 0,
+        normalized: bool = True,
     ):
         """
         Stores the attributes  and computes the sums needed
@@ -238,13 +239,15 @@ class splineOPConstrained(object):
             becomes important when working with 1-dimensional signals, care should
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ).
         """
-        self.cost.fit(signal, states, initial_speeds, normalized)
         self.n_points = self.cost.signal.shape[0]
-        self.ndims = self.cost.signal.shape[1]
+        
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
-        
+        if sample_size<=0:
+            sample_size = self.n_points
+        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
+        self.ndims = signal.shape[1]
 
     def predict(self, K):
         """
