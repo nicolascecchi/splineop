@@ -72,15 +72,16 @@ class splineOPPenalized(object):
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ). 
         """
         
+        
         self.n_points = signal.shape[0]
+        self.ndims = signal.shape[1]
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         if sample_size <= 0:
             sample_size = self.n_points
         self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
-        self.ndims = signal.shape[1]
-
+        
     def predict(self, penalty: float) -> None:
         """
         Computes the cost of solving the SplineOP problem with a given penalty.
@@ -240,15 +241,14 @@ class splineOPConstrained(object):
             be taken so that the shape is (n_samples, 1) and _NOT_ (n_samples, ).
         """
         
-        
+        self.n_points = signal.shape[0]
+        self.ndims = signal.shape[1]
         self.n_states = states.shape[1]
         self.states = states  # np.array([_ for _ in set(states)], dtype=np.float64)
         self.initial_speeds = initial_speeds  # np.array([_ for _ in set(initial_speeds)], dtype=np.float64)
         if sample_size<=0:
             sample_size = self.n_points
-        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)
-        self.n_points = self.cost.signal.shape[0]
-        self.ndims = signal.shape[1]
+        self.cost.fit(signal, states, initial_speeds, sample_size, normalized)        
 
     def predict(self, K):
         """
