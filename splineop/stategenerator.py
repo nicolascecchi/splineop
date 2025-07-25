@@ -43,8 +43,8 @@ class RandomGenerator(StateGenerator):
     def __init__(self, signal):
         super().__init__(signal)
 
-    def fit(self, n_states):
-        from splineop.sputils import sd_hall_diff
+    def fit(self, n_states,sd="hall"):
+        
         # Implement random state generation logic
         try:
             signal_length, signal_dims = self.signal.shape
@@ -55,7 +55,12 @@ class RandomGenerator(StateGenerator):
         states = np.zeros(shape=states_shape)
         
         #states[-1] = self.signal[-1]
-        stddevarray = sd_hall_diff(self.signal,var=False)
+        if sd=="hall":
+            from splineop.sputils import sd_hall_diff
+            stddevarray = sd_hall_diff(self.signal,var=False)
+        else:
+            stddevarray = np.ones(signal_dims) * sd
+        
         for dim in range(signal_dims):
             noise = np.random.normal(0, stddevarray[dim], (signal_length,n_states))
             states[:,:,dim] = self.signal[:,dim,None] + noise
