@@ -1,5 +1,4 @@
-import splineop.splineop as sop
-import splineop.costs as costs
+import splineop.splineop as spop
 import numpy as np
 from scipy import stats
 import pickle
@@ -154,12 +153,14 @@ def predict_pipeline(signal, positions, speeds, pen=None, normalized=True, K=Non
         normalized (bool) : Wether the signal lives in [0,1) or not.
 
     Returns:
-        model (sop.splineOP): SplineOP model fit to the signal with given data.
+        model (spop.splineOP): SplineOP model fit to the signal with given data.
 
     """
+    import splineop.costs as costs
+
     if K:
         cost = costs.costConstrained()
-        model = sop.splineOPConstrained(cost)
+        model = spop.splineOPConstrained(cost)
 
         model.fit(signal, positions, speeds, normalized)
         t0 = time.process_time()
@@ -167,7 +168,7 @@ def predict_pipeline(signal, positions, speeds, pen=None, normalized=True, K=Non
         deltat = time.process_time() - t0
     else:
         cost = costs.costPenalized()
-        model = sop.splineOPPenalized(cost)
+        model = spop.splineOPPenalized(cost)
 
         model.fit(signal, positions, speeds, normalized)
         t0 = time.process_time()
@@ -471,8 +472,8 @@ def see_predictions(n_points, n_bkps, seed, noise_idx, multiplier, tftol, dfpivo
     #####################################
     #####################################
 
-    cost = sop.cost_fn()
-    model = sop.splineOP(cost)
+    cost = spop.cost_fn()
+    model = spop.splineOP(cost)
 
     model.fit(noised_signal, states, speeds, True)
     model.predict(pen)
@@ -612,13 +613,13 @@ def compare_tf_spop(n_points, n_bkps, seed, noise_idx, tftol, multiplier, savedi
 
     ytf = trend_filtering_pwq(signal=noised_signal.reshape(n_points, 1), vlambda=pen)[0]
 
-    cost = sop.cost_fn()
-    model = sop.splineOP(cost)
+    cost = spop.cost_fn()
+    model = spop.splineOP(cost)
 
     model.fit(noised_signal, states, speeds, True)
     model.predict(pen)
 
-    spop_poly = sop.get_polynomial_from_model(model)
+    spop_poly = spop.get_polynomial_from_model(model)
 
     ## Number of ruptures for each algorithm:
     tf_cpt = np.where(~np.isclose(np.diff(ytf, n=3), 0, atol=tftol))[0]
